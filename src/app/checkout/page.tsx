@@ -133,7 +133,7 @@ export default function CheckoutPage() {
       }));
 
       const pedidoId = await pedidosAPI.create({
-        user_id: user?.uid || null,
+        user_id: user?.uid || undefined,
         cliente_nome: formData.nome,
         cliente_email: formData.email,
         cliente_whatsapp: formData.whatsapp,
