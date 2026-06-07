@@ -7,7 +7,7 @@ service cloud.firestore {
     // Verifica se o usuário que está fazendo a ação está na lista de e-mails permitidos
     function isAdmin() {
       return request.auth != null && (
-        request.auth.token.email == 'rodrigorbs@gmail.com' ||
+        request.auth.token.email == 'rodrigorbes@gmail.com' ||
         request.auth.token.email == 'dra.rachelbeatriz@gmail.com'
       );
     }

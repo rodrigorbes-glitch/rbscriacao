@@ -11,7 +11,7 @@ interface AuthGuardProps {
 
 // Coloque aqui os e-mails que terão acesso ao painel admin
 const ADMIN_EMAILS = [
-  'rodrigorbs@gmail.com',
+  'rodrigorbes@gmail.com',
   'dra.rachelbeatriz@gmail.com'
 ];
 
