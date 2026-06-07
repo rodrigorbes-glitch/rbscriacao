@@ -1,5 +1,5 @@
 'use client';
-
+import Image from 'next/image';
 import { useCart } from '@/contexts/CartContext';
 import { useEffect } from 'react';
 import Button from '@/components/ui/Button';
@@ -57,8 +57,8 @@ export default function CartDrawer() {
             <div style={{ display: 'flex', flexDirection: 'column', gap: '1rem' }}>
               {items.map(item => (
                 <div key={item.id} className="cart-item">
-                  <div className="cart-item-image">
-                    <img src={item.foto_url || 'https://via.placeholder.com/100?text=Sem+Foto'} alt={item.nome} />
+                  <div className="cart-item-image" style={{ position: 'relative', overflow: 'hidden' }}>
+                    <Image src={item.foto_url || 'https://via.placeholder.com/100?text=Sem+Foto'} alt={item.nome} fill sizes="100px" style={{ objectFit: 'contain', mixBlendMode: 'multiply' }} />
                   </div>
                   <div className="cart-item-info">
                     <div className="cart-item-header">

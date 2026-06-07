@@ -1,5 +1,6 @@
 'use client';
 
+import Image from 'next/image';
 import { useState, useEffect, useRef } from 'react';
 import { produtosAPI } from '@/services/api';
 import { Produto } from '@/types/models';
@@ -246,12 +247,15 @@ export default function ProdutosPage() {
       key: 'foto_url', 
       header: 'Foto',
       render: (item) => (
-        <img 
-          src={convertDriveImageLink(item.foto_url) || 'https://via.placeholder.com/40?text=S/F'} 
-          alt="thumb" 
-          referrerPolicy="no-referrer"
-          style={{ width: '40px', height: '40px', objectFit: 'cover', borderRadius: '4px' }} 
-        />
+        <div style={{ position: 'relative', width: '40px', height: '40px', overflow: 'hidden', borderRadius: '4px' }}>
+          <Image 
+            src={convertDriveImageLink(item.foto_url) || 'https://via.placeholder.com/40?text=S/F'} 
+            alt="thumb" 
+            fill
+            sizes="40px"
+            style={{ objectFit: 'cover' }} 
+          />
+        </div>
       )
     },
     { 
@@ -446,12 +450,15 @@ export default function ProdutosPage() {
             
             <div style={{ display: 'flex', gap: '1rem', alignItems: 'center', marginBottom: '1rem' }}>
               {formData.foto_url && (
-                <img 
-                  src={convertDriveImageLink(formData.foto_url)} 
-                  alt="Preview" 
-                  referrerPolicy="no-referrer"
-                  style={{ width: '80px', height: '80px', objectFit: 'contain', borderRadius: 'var(--radius-sm)', border: '1px solid var(--color-border)', backgroundColor: '#fff' }} 
-                />
+                <div style={{ position: 'relative', width: '80px', height: '80px', borderRadius: 'var(--radius-sm)', border: '1px solid var(--color-border)', backgroundColor: '#fff', overflow: 'hidden' }}>
+                  <Image 
+                    src={convertDriveImageLink(formData.foto_url)} 
+                    alt="Preview" 
+                    fill
+                    sizes="80px"
+                    style={{ objectFit: 'contain' }} 
+                  />
+                </div>
               )}
               
               <div style={{ flex: 1 }}>

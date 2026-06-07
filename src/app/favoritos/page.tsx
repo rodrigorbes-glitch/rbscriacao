@@ -1,5 +1,5 @@
 'use client';
-
+import Image from 'next/image';
 import { useState, useEffect } from 'react';
 import { configuracoesAPI } from '@/services/api';
 import { Produto, Configuracao } from '@/types/models';
@@ -146,10 +146,13 @@ export default function FavoritosPage() {
             <div className="products-grid-public">
               {favorites.map(produto => (
                 <div key={produto.id} className="product-card-public" style={{ minWidth: 'auto', cursor: 'pointer' }} onClick={() => handleProductClick(produto.id as string)}>
-                  <div className="product-card-image-wrapper" style={{ position: 'relative' }}>
-                    <img 
+                  <div className="product-card-image-wrapper" style={{ position: 'relative', aspectRatio: '1/1', overflow: 'hidden' }}>
+                    <Image 
                       src={produto.foto_url || 'https://via.placeholder.com/300x300?text=Sem+Foto'} 
                       alt={produto.nome} 
+                      fill
+                      sizes="(max-width: 768px) 100vw, (max-width: 1200px) 50vw, 33vw"
+                      style={{ objectFit: 'cover' }}
                     />
                     <button 
                       onClick={(e) => handleToggleFavorite(e, produto)}

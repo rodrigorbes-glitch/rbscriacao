@@ -1,6 +1,7 @@
 'use client';
 
 import { useEffect, useState } from 'react';
+import Image from 'next/image';
 import { useParams, useRouter } from 'next/navigation';
 import { produtosAPI, configuracoesAPI } from '@/services/api';
 import { Produto, Configuracao } from '@/types/models';
@@ -170,11 +171,16 @@ export default function ProdutoDetailsPage() {
               aspectRatio: '1/1',
               position: 'relative'
             }}>
-              <img 
-                src={produto.foto_url || 'https://via.placeholder.com/600x600?text=Sem+Foto'} 
-                alt={produto.nome}
-                style={{ width: '100%', height: '100%', objectFit: 'contain', mixBlendMode: 'multiply' }} 
-              />
+              <div style={{ position: 'relative', width: '100%', height: '100%' }}>
+                <Image 
+                  src={produto.foto_url || 'https://via.placeholder.com/600x600?text=Sem+Foto'} 
+                  alt={produto.nome}
+                  fill
+                  sizes="(max-width: 768px) 100vw, 50vw"
+                  style={{ objectFit: 'contain', mixBlendMode: 'multiply' }} 
+                  priority
+                />
+              </div>
               <button 
                 onClick={handleToggleFavorite}
                 style={{

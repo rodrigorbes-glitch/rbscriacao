@@ -11,6 +11,18 @@ const withPWA = withPWAInit({
 const nextConfig: NextConfig = {
   /* Use webpack bundler for next-pwa compatibility */
   turbopack: {},
+  images: {
+    remotePatterns: [
+      {
+        protocol: 'https',
+        hostname: 'firebasestorage.googleapis.com',
+      },
+      {
+        protocol: 'https',
+        hostname: 'via.placeholder.com',
+      }
+    ],
+  },
 };
 
 export default withPWA(nextConfig);

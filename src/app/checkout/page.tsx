@@ -1,5 +1,5 @@
 'use client';
-
+import Image from 'next/image';
 import { useState, useEffect } from 'react';
 import { useRouter } from 'next/navigation';
 import { useCart } from '@/contexts/CartContext';
@@ -232,11 +232,14 @@ export default function CheckoutPage() {
               
               {paymentResult.pixData.qr_code_base64 && (
                 <div style={{ display: 'flex', justifyContent: 'center', marginBottom: '1.5rem' }}>
-                  <img 
-                    src={`data:image/jpeg;base64,${paymentResult.pixData.qr_code_base64}`} 
-                    alt="QR Code Pix" 
-                    style={{ width: '250px', height: '250px', objectFit: 'contain', border: '1px solid var(--color-border)', borderRadius: 'var(--radius-md)', padding: '0.5rem', backgroundColor: '#fff' }} 
-                  />
+                  <div style={{ position: 'relative', width: '250px', height: '250px', border: '1px solid var(--color-border)', borderRadius: 'var(--radius-md)', padding: '0.5rem', backgroundColor: '#fff' }}>
+                    <Image 
+                      src={`data:image/jpeg;base64,${paymentResult.pixData.qr_code_base64}`} 
+                      alt="QR Code Pix" 
+                      fill
+                      style={{ objectFit: 'contain' }} 
+                    />
+                  </div>
                 </div>
               )}
 
@@ -405,8 +408,8 @@ export default function CheckoutPage() {
               <div style={{ display: 'flex', flexDirection: 'column', gap: '1rem', marginBottom: '1.5rem', maxHeight: '300px', overflowY: 'auto' }}>
                 {items.map(item => (
                   <div key={item.id} style={{ display: 'flex', gap: '1rem', alignItems: 'center' }}>
-                    <div style={{ width: '40px', height: '40px', backgroundColor: '#f8f8f9', borderRadius: 'var(--radius-sm)', padding: '0.25rem' }}>
-                      <img src={item.foto_url || 'https://via.placeholder.com/40'} alt={item.nome} style={{ width: '100%', height: '100%', objectFit: 'contain', mixBlendMode: 'multiply' }} />
+                    <div style={{ width: '40px', height: '40px', backgroundColor: '#f8f8f9', borderRadius: 'var(--radius-sm)', padding: '0.25rem', position: 'relative', overflow: 'hidden' }}>
+                      <Image src={item.foto_url || 'https://via.placeholder.com/40'} alt={item.nome} fill sizes="40px" style={{ objectFit: 'contain', mixBlendMode: 'multiply' }} />
                     </div>
                     <div style={{ flex: 1 }}>
                       <div style={{ fontSize: '0.875rem', fontWeight: 600 }}>{item.nome}</div>
