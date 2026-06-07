@@ -40,9 +40,14 @@ export async function POST(req: Request) {
           if (external_reference) {
             const pedido = await pedidosAPI.getById(external_reference);
             
-            if (pedido && pedido.status !== 'pago' && status === 'approved') {
+              if (pedido && pedido.status !== 'pago' && status === 'approved') {
               // 1. Marcar como pago
               await pedidosAPI.update(external_reference, { status: 'pago' });
+
+              // 1.5. Disparar E-mail de Pagamento Aprovado
+              import('@/services/email').then(({ emailService }) => {
+                emailService.enviarConfirmacaoPagamento({ ...pedido, id: external_reference });
+              });
 
               // 2. Dar baixa no estoque central
               const produtosDb = await produtosAPI.getAll();

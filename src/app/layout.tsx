@@ -18,7 +18,7 @@ const playfair = Playfair_Display({
 
 export const metadata: Metadata = {
   title: "RBS Criação",
-  description: "RBS Criação — Plataforma de criação e gestão",
+  description: "Peças exclusivas e brindes personalizados. Compre no varejo ou seja um distribuidor parceiro.",
   manifest: "/manifest.json",
   appleWebApp: {
     capable: true,
@@ -27,6 +27,28 @@ export const metadata: Metadata = {
   },
   formatDetection: {
     telephone: false,
+  },
+  openGraph: {
+    title: "RBS Criação",
+    description: "Peças exclusivas e brindes personalizados. Compre no varejo ou seja um distribuidor parceiro.",
+    url: "https://www.rbscriacao.com",
+    siteName: "RBS Criação",
+    images: [
+      {
+        url: "https://www.rbscriacao.com/icons/icon-512x512.png",
+        width: 512,
+        height: 512,
+        alt: "Logo RBS Criação",
+      },
+    ],
+    locale: "pt_BR",
+    type: "website",
+  },
+  twitter: {
+    card: "summary_large_image",
+    title: "RBS Criação",
+    description: "Peças exclusivas e brindes personalizados. Compre no varejo ou seja um distribuidor parceiro.",
+    images: ["https://www.rbscriacao.com/icons/icon-512x512.png"],
   },
 };
 

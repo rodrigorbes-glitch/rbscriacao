@@ -217,6 +217,24 @@ export default function CheckoutPage() {
     }
   };
 
+  const [isPixPaid, setIsPixPaid] = useState(false);
+
+  // Escuta o banco de dados em tempo real se houver um pedido Pix pendente
+  useEffect(() => {
+    if (paymentResult && paymentResult.pedidoId && paymentResult.pixData && !isPixPaid) {
+      import('firebase/firestore').then(({ doc, onSnapshot }) => {
+        import('@/services/firebase').then(({ db }) => {
+          const unsubscribe = onSnapshot(doc(db, 'pedidos', paymentResult.pedidoId), (docSnap) => {
+            if (docSnap.exists() && docSnap.data().status === 'pago') {
+              setIsPixPaid(true);
+            }
+          });
+          return () => unsubscribe();
+        });
+      });
+    }
+  }, [paymentResult, isPixPaid]);
+
   const [hasLoaded, setHasLoaded] = useState(false);
   useEffect(() => {
     setHasLoaded(true);
@@ -229,35 +247,47 @@ export default function CheckoutPage() {
     return (
       <div className="public-layout" style={{ justifyContent: 'center', alignItems: 'center' }}>
         <div style={{ backgroundColor: '#fff', padding: '3rem', borderRadius: 'var(--radius-lg)', textAlign: 'center', maxWidth: '500px', width: '100%', boxShadow: '0 10px 30px rgba(0,0,0,0.1)' }}>
-          <div style={{ fontSize: '4rem', marginBottom: '1rem' }}>🎉</div>
-          <h1 style={{ fontSize: '1.5rem', fontWeight: 700, marginBottom: '1rem', color: 'var(--color-text-primary)' }}>Pedido Confirmado!</h1>
-          <p style={{ color: 'var(--color-text-secondary)', marginBottom: '2rem' }}>Obrigado pela sua compra. Seu pedido nº <strong>{paymentResult.pedidoId.substring(0, 8)}</strong> foi gerado com sucesso.</p>
-          
-          {paymentResult.pixData?.qr_code && (
-            <div style={{ backgroundColor: 'var(--color-bg-secondary)', padding: '1.5rem', borderRadius: 'var(--radius-md)', marginBottom: '2rem' }}>
-              <h3 style={{ fontSize: '1rem', fontWeight: 600, marginBottom: '1rem' }}>Pague via Pix</h3>
+          {isPixPaid || paymentResult.status === 'approved' ? (
+            <>
+              <div style={{ fontSize: '4rem', marginBottom: '1rem' }}>🎉</div>
+              <h1 style={{ fontSize: '1.5rem', fontWeight: 700, marginBottom: '1rem', color: 'var(--color-success)' }}>Pagamento Aprovado!</h1>
+              <p style={{ color: 'var(--color-text-secondary)', marginBottom: '2rem' }}>Obrigado pela sua compra. Seu pedido nº <strong>{paymentResult.pedidoId.substring(0, 8)}</strong> já está sendo preparado.</p>
+              <Button variant="outline" onClick={() => router.push('/')} style={{ width: '100%' }}>Voltar para a Loja</Button>
+            </>
+          ) : (
+            <>
+              <div style={{ fontSize: '4rem', marginBottom: '1rem' }}>⏳</div>
+              <h1 style={{ fontSize: '1.5rem', fontWeight: 700, marginBottom: '1rem', color: 'var(--color-text-primary)' }}>Aguardando Pagamento...</h1>
+              <p style={{ color: 'var(--color-text-secondary)', marginBottom: '2rem' }}>Seu pedido nº <strong>{paymentResult.pedidoId.substring(0, 8)}</strong> foi gerado.</p>
               
-              {paymentResult.pixData.qr_code_base64 && (
-                <div style={{ display: 'flex', justifyContent: 'center', marginBottom: '1.5rem' }}>
-                  <div style={{ position: 'relative', width: '250px', height: '250px', border: '1px solid var(--color-border)', borderRadius: 'var(--radius-md)', padding: '0.5rem', backgroundColor: '#fff' }}>
-                    <Image 
-                      src={`data:image/jpeg;base64,${paymentResult.pixData.qr_code_base64}`} 
-                      alt="QR Code Pix" 
-                      fill
-                      style={{ objectFit: 'contain' }} 
-                    />
-                  </div>
+              {paymentResult.pixData?.qr_code && (
+                <div style={{ backgroundColor: 'var(--color-bg-secondary)', padding: '1.5rem', borderRadius: 'var(--radius-md)', marginBottom: '2rem' }}>
+                  <h3 style={{ fontSize: '1rem', fontWeight: 600, marginBottom: '1rem' }}>Pague via Pix</h3>
+                  
+                  {paymentResult.pixData.qr_code_base64 && (
+                    <div style={{ display: 'flex', justifyContent: 'center', marginBottom: '1.5rem' }}>
+                      <div style={{ position: 'relative', width: '250px', height: '250px', border: '1px solid var(--color-border)', borderRadius: 'var(--radius-md)', padding: '0.5rem', backgroundColor: '#fff' }}>
+                        <Image 
+                          src={`data:image/jpeg;base64,${paymentResult.pixData.qr_code_base64}`} 
+                          alt="QR Code Pix" 
+                          fill
+                          style={{ objectFit: 'contain' }} 
+                        />
+                      </div>
+                    </div>
+                  )}
+
+                  <p style={{ fontSize: '0.875rem', marginBottom: '1rem', wordBreak: 'break-all', backgroundColor: '#fff', padding: '1rem', border: '1px dashed #ccc' }}>
+                    {paymentResult.pixData.qr_code}
+                  </p>
+                  <Button onClick={() => navigator.clipboard.writeText(paymentResult.pixData.qr_code)} style={{ width: '100%' }}>Copiar Código Pix</Button>
+                  <p style={{ fontSize: '0.75rem', color: 'var(--color-text-tertiary)', marginTop: '1rem' }}>
+                    Esta tela atualizará automaticamente assim que você pagar.
+                  </p>
                 </div>
               )}
-
-              <p style={{ fontSize: '0.875rem', marginBottom: '1rem', wordBreak: 'break-all', backgroundColor: '#fff', padding: '1rem', border: '1px dashed #ccc' }}>
-                {paymentResult.pixData.qr_code}
-              </p>
-              <Button onClick={() => navigator.clipboard.writeText(paymentResult.pixData.qr_code)} style={{ width: '100%' }}>Copiar Código Pix</Button>
-            </div>
+            </>
           )}
-
-          <Button variant="outline" onClick={() => router.push('/')} style={{ width: '100%' }}>Voltar para a Loja</Button>
         </div>
       </div>
     );

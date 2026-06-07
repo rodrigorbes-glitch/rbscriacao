@@ -87,6 +87,16 @@ export async function POST(req: Request) {
       isApproved = true;
     }
 
+    // Se o pagamento já foi aprovado imediatamente (ex: Cartão de Crédito)
+    if (mpResponseData.status === 'approved') {
+      import('@/services/email').then(async ({ emailService }) => {
+        const pedido = await pedidosAPI.getById(pedidoId);
+        if (pedido) {
+          await emailService.enviarConfirmacaoPagamento(pedido);
+        }
+      });
+    }
+
     // Retorna para o Frontend finalizar a atualização do Firestore
     return NextResponse.json({
       success: true,
