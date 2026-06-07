@@ -4,9 +4,12 @@ service cloud.firestore {
   match /databases/{database}/documents {
     
     // FUNÇÕES GERAIS DE SEGURANÇA
-    // Verifica se o usuário que está fazendo a ação está logado no Painel Admin
+    // Verifica se o usuário que está fazendo a ação está na lista de e-mails permitidos
     function isAdmin() {
-      return request.auth != null;
+      return request.auth != null && (
+        request.auth.token.email == 'rodrigorbs@gmail.com' ||
+        request.auth.token.email == 'segundo_email_aqui@gmail.com'
+      );
     }
 
     // NÍVEL 1: VITRINE PÚBLICA (Qualquer um lê, só Admin altera)

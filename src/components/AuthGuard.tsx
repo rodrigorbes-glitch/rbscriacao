@@ -9,6 +9,12 @@ interface AuthGuardProps {
   children: React.ReactNode;
 }
 
+// Coloque aqui os e-mails que terão acesso ao painel admin
+const ADMIN_EMAILS = [
+  'rodrigorbs@gmail.com',
+  // 'email_do_segundo_admin@gmail.com' // Descomente e adicione o segundo email aqui
+];
+
 export default function AuthGuard({ children }: AuthGuardProps) {
   const router = useRouter();
   const [user, setUser] = useState<User | null>(null);
@@ -18,6 +24,11 @@ export default function AuthGuard({ children }: AuthGuardProps) {
     const unsubscribe = onAuthStateChanged(auth, (currentUser) => {
       if (!currentUser) {
         router.replace('/login');
+      } else if (currentUser.email && !ADMIN_EMAILS.includes(currentUser.email)) {
+        // Se estiver logado mas não for admin, bloqueia o acesso
+        alert('Acesso negado: Este e-mail não tem privilégios de administrador.');
+        auth.signOut();
+        router.replace('/');
       } else {
         setUser(currentUser);
       }
