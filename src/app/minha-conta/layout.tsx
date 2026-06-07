@@ -41,7 +41,7 @@ export default function MinhaContaLayout({ children }: { children: React.ReactNo
   return (
     <div className="public-layout" style={{ minHeight: '100vh' }}>
       <header className="public-header" style={{ justifyContent: 'space-between', padding: '0 2rem' }}>
-        <div className="public-logo" style={{ cursor: 'pointer' }} onClick={() => router.push('/')}>Aura Premium</div>
+        <div className="public-logo" style={{ cursor: 'pointer' }} onClick={() => router.push('/')}>RBS Criação</div>
         <nav style={{ display: 'flex', gap: '1.5rem', fontWeight: 600 }}>
           <a href="/minha-conta" style={{ color: 'var(--color-text-primary)' }}>Dashboard</a>
           <a href="/" style={{ color: 'var(--color-text-secondary)' }}>Ir para a Loja</a>

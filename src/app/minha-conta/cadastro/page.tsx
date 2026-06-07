@@ -75,7 +75,7 @@ export default function CadastroPage() {
         <div style={{ position: 'absolute', left: '2rem', cursor: 'pointer', fontWeight: 600, color: 'var(--color-text-secondary)' }} onClick={() => router.push('/minha-conta/login')}>
           &larr; Voltar
         </div>
-        <div className="public-logo">Aura Premium</div>
+        <div className="public-logo">RBS Criação</div>
       </header>
 
       <main style={{ flex: 1, display: 'flex', alignItems: 'center', justifyContent: 'center', padding: '2rem' }}>

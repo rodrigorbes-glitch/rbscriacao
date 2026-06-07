@@ -29,7 +29,7 @@ export async function POST(req: Request) {
     // 2. Processar Pagamento via API do Mercado Pago
     const paymentData: any = {
       transaction_amount: Number(totalReal.toFixed(2)),
-      description: `Pedido ${pedidoId} - Aura Premium`,
+      description: `Pedido ${pedidoId} - RBS Criação`,
       payment_method_id: paymentMethodId,
       payer: {
         email: formData.email || 'comprador@email.com',

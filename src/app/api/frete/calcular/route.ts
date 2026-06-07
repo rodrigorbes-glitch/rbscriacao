@@ -61,7 +61,7 @@ export async function POST(req: Request) {
         'Accept': 'application/json',
         'Content-Type': 'application/json',
         'Authorization': `Bearer ${MELHOR_ENVIO_TOKEN}`,
-        'User-Agent': 'Aura Premium Loja (suporte@aurapremium.com.br)'
+        'User-Agent': 'RBS Criação Loja (suporte@rbscriacao.com)'
       },
       body: JSON.stringify(payload)
     });
