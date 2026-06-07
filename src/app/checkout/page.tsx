@@ -132,8 +132,7 @@ export default function CheckoutPage() {
         preco_unitario: item.preco_venda_sugerido
       }));
 
-      const pedidoId = await pedidosAPI.create({
-        user_id: user?.uid || undefined,
+      const novoPedido: any = {
         cliente_nome: formData.nome,
         cliente_email: formData.email,
         cliente_whatsapp: formData.whatsapp,
@@ -145,7 +144,13 @@ export default function CheckoutPage() {
         prazo_estimado: freteEscolhido.delivery_time,
         valor_total: subtotal + valorFrete,
         status: 'pendente'
-      });
+      };
+
+      if (user?.uid) {
+        novoPedido.user_id = user.uid;
+      }
+
+      const pedidoId = await pedidosAPI.create(novoPedido);
 
       // 2. Chamar backend apenas para processar pagamento no Mercado Pago
       const payload = {
@@ -367,6 +372,7 @@ export default function CheckoutPage() {
                          email: formData.email,
                        }
                      }}
+                     key={freteEscolhido.id} // Chave fixa baseada no frete para evitar duplicação em re-renders
                      customization={{
                        paymentMethods: {
                          creditCard: 'all',
