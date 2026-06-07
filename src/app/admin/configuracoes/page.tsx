@@ -16,6 +16,7 @@ export default function ConfiguracoesPage() {
     nome_loja: '',
     telefone_publico: '',
     mensagem_rodape: '',
+    cep_origem: '',
     instagram: '',
     banner_titulo: '',
     banner_subtitulo: '',
@@ -35,6 +36,7 @@ export default function ConfiguracoesPage() {
             nome_loja: config.nome_loja || '',
             telefone_publico: config.telefone_publico || '',
             mensagem_rodape: config.mensagem_rodape || '',
+            cep_origem: config.cep_origem || '',
             instagram: config.instagram || '',
             banner_titulo: config.banner_titulo || '',
             banner_subtitulo: config.banner_subtitulo || '',
@@ -138,6 +140,18 @@ export default function ConfiguracoesPage() {
                 placeholder="Ex: Entregamos em toda a região. Entre em contato para parcerias B2B."
                 value={formData.mensagem_rodape}
                 onChange={(e) => setFormData({...formData, mensagem_rodape: e.target.value})}
+              />
+            </div>
+
+            <div style={{ marginTop: '2rem', padding: '1rem', backgroundColor: '#f0f4ff', borderRadius: 'var(--radius-md)', border: '1px solid #cce0ff' }}>
+              <h3 style={{ fontSize: '1rem', fontWeight: 'bold', color: '#004085', marginBottom: '0.5rem' }}>🚚 Logística e Frete (Melhor Envio)</h3>
+              <p style={{ fontSize: '0.875rem', color: '#004085', marginBottom: '1rem' }}>Este CEP será usado como endereço de origem (onde você despacha a mercadoria) para o cálculo automático do frete dos clientes.</p>
+              <Input
+                label="Seu CEP de Origem (Somente números)"
+                placeholder="Ex: 25020140"
+                value={formData.cep_origem || ''}
+                onChange={(e) => setFormData({...formData, cep_origem: e.target.value.replace(/\D/g, '')})}
+                maxLength={8}
               />
             </div>
 

@@ -22,6 +22,13 @@ const CATEGORIAS_SUGERIDAS = [
   'Casa e Decoração'
 ];
 
+const DIMENSOES_PRESETS = [
+  { label: 'Caixa Padrão (15x15x15cm, 300g)', peso: 0.3, altura: 15, largura: 15, comprimento: 15 },
+  { label: 'Envelope (20x30x2cm, 100g)', peso: 0.1, altura: 2, largura: 20, comprimento: 30 },
+  { label: 'Caixa Média (30x30x30cm, 1kg)', peso: 1.0, altura: 30, largura: 30, comprimento: 30 },
+  { label: 'Caixa Grande (50x50x50cm, 3kg)', peso: 3.0, altura: 50, largura: 50, comprimento: 50 },
+];
+
 
 
 export default function ProdutosPage() {
@@ -47,8 +54,11 @@ export default function ProdutosPage() {
     foto_url: '',
     fotos_adicionais: ['', '', '', '', '', ''],
     video_url: '',
-    destaque: false
+    destaque: false,
+    dimensoes: { peso: 0.3, altura: 15, largura: 15, comprimento: 15 }
   });
+
+  const [dimensaoPreset, setDimensaoPreset] = useState('Caixa Padrão (15x15x15cm, 300g)');
 
   // Calculadora de Bolso State
   const [showCalculator, setShowCalculator] = useState(false);
@@ -108,8 +118,10 @@ export default function ProdutosPage() {
            ? [...produto.fotos_adicionais, ...Array(6 - produto.fotos_adicionais.length).fill('')].slice(0, 6)
            : ['', '', '', '', '', ''],
         video_url: produto.video_url || '',
-        destaque: produto.destaque || false
+        destaque: produto.destaque || false,
+        dimensoes: produto.dimensoes || { peso: 0.3, altura: 15, largura: 15, comprimento: 15 }
       });
+      setDimensaoPreset('Personalizado');
     } else {
       setEditingId(null);
       setFormData({
@@ -122,8 +134,10 @@ export default function ProdutosPage() {
         foto_url: '',
         fotos_adicionais: ['', '', '', '', '', ''],
         video_url: '',
-        destaque: false
+        destaque: false,
+        dimensoes: { peso: 0.3, altura: 15, largura: 15, comprimento: 15 }
       });
+      setDimensaoPreset('Caixa Padrão (15x15x15cm, 300g)');
     }
     setShowCalculator(false); // Fecha calculadora ao abrir
     setIsModalOpen(true);
@@ -390,6 +404,74 @@ export default function ProdutosPage() {
                   placeholder="Ex: 30"
                   value={calcMargem}
                   onChange={(e) => setCalcMargem(e.target.value === '' ? '' : parseFloat(e.target.value))}
+                />
+              </div>
+            )}
+          </div>
+
+          <div style={{ padding: '1rem', backgroundColor: '#f9fafb', border: '1px solid #e5e7eb', borderRadius: 'var(--radius-md)', marginBottom: '1rem' }}>
+            <h3 style={{ fontSize: '0.875rem', fontWeight: 'bold', marginBottom: '1rem', color: 'var(--color-text-primary)' }}>📦 Dimensões e Peso (Para Cálculo de Frete)</h3>
+            
+            <div className="form-group" style={{ marginBottom: '1rem' }}>
+              <label className="form-label">Predefinição de Embalagem</label>
+              <select 
+                className="input-field" 
+                value={dimensaoPreset}
+                onChange={(e) => {
+                  const val = e.target.value;
+                  setDimensaoPreset(val);
+                  if (val !== 'Personalizado') {
+                    const preset = DIMENSOES_PRESETS.find(p => p.label === val);
+                    if (preset && formData.dimensoes) {
+                      setFormData({
+                        ...formData,
+                        dimensoes: { ...formData.dimensoes, peso: preset.peso, altura: preset.altura, largura: preset.largura, comprimento: preset.comprimento }
+                      });
+                    }
+                  }
+                }}
+              >
+                {DIMENSOES_PRESETS.map(p => (
+                  <option key={p.label} value={p.label}>{p.label}</option>
+                ))}
+                <option value="Personalizado">Tamanho Personalizado...</option>
+              </select>
+            </div>
+
+            {dimensaoPreset === 'Personalizado' && formData.dimensoes && (
+              <div style={{ display: 'grid', gridTemplateColumns: 'repeat(4, 1fr)', gap: '0.5rem' }}>
+                <Input
+                  label="Peso (kg)"
+                  type="number"
+                  step="0.01"
+                  min="0.1"
+                  value={formData.dimensoes.peso === 0 ? '' : formData.dimensoes.peso}
+                  onChange={(e) => setFormData({...formData, dimensoes: { ...formData.dimensoes!, peso: parseFloat(e.target.value) || 0 }})}
+                  required
+                />
+                <Input
+                  label="Alt. (cm)"
+                  type="number"
+                  min="1"
+                  value={formData.dimensoes.altura === 0 ? '' : formData.dimensoes.altura}
+                  onChange={(e) => setFormData({...formData, dimensoes: { ...formData.dimensoes!, altura: parseInt(e.target.value) || 0 }})}
+                  required
+                />
+                <Input
+                  label="Larg. (cm)"
+                  type="number"
+                  min="1"
+                  value={formData.dimensoes.largura === 0 ? '' : formData.dimensoes.largura}
+                  onChange={(e) => setFormData({...formData, dimensoes: { ...formData.dimensoes!, largura: parseInt(e.target.value) || 0 }})}
+                  required
+                />
+                <Input
+                  label="Comp. (cm)"
+                  type="number"
+                  min="1"
+                  value={formData.dimensoes.comprimento === 0 ? '' : formData.dimensoes.comprimento}
+                  onChange={(e) => setFormData({...formData, dimensoes: { ...formData.dimensoes!, comprimento: parseInt(e.target.value) || 0 }})}
+                  required
                 />
               </div>
             )}

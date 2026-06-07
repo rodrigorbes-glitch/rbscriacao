@@ -1,8 +1,7 @@
 import { NextResponse } from 'next/server';
-import { produtosAPI } from '@/services/api';
+import { configuracoesAPI, produtosAPI } from '@/services/api';
 
 const MELHOR_ENVIO_TOKEN = process.env.MELHOR_ENVIO_TOKEN || 'SUA_CHAVE_AQUI';
-const CEP_ORIGEM = '25020140';
 
 export async function POST(req: Request) {
   try {
@@ -11,6 +10,10 @@ export async function POST(req: Request) {
     if (!cepDestino || !carrinho || carrinho.length === 0) {
       return NextResponse.json({ error: 'CEP de destino e carrinho são obrigatórios.' }, { status: 400 });
     }
+
+    // Buscar CEP de origem configurado no painel Admin
+    const config = await configuracoesAPI.getGeral();
+    const cepOrigem = config?.cep_origem || '25020140'; // Fallback se nao houver configurado
 
     // 1. Buscar dimensões reais no Firestore para evitar fraudes
     // e montar o array de products para o Melhor Envio
@@ -39,7 +42,7 @@ export async function POST(req: Request) {
     // 2. Montar o payload para o Melhor Envio
     const payload = {
       from: {
-        postal_code: CEP_ORIGEM
+        postal_code: cepOrigem
       },
       to: {
         postal_code: cepDestino.replace(/\D/g, '')

@@ -85,6 +85,7 @@ export interface Configuracao {
   nome_loja: string;
   telefone_publico: string;
   mensagem_rodape: string;
+  cep_origem?: string;
   instagram?: string;
   banner_titulo?: string;
   banner_subtitulo?: string;
