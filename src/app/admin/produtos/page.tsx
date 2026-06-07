@@ -168,6 +168,8 @@ export default function ProdutosPage() {
     try {
       // Formata os links antes de salvar usando o utilitário
       const payload = { ...formData };
+      payload.custo_aquisicao = Number(payload.custo_aquisicao) || 0;
+      payload.preco_venda_sugerido = Number(payload.preco_venda_sugerido) || 0;
       payload.foto_url = convertDriveImageLink(payload.foto_url);
       payload.video_url = convertYouTubeLink(payload.video_url);
       payload.fotos_adicionais = (payload.fotos_adicionais || [])
@@ -328,20 +330,30 @@ export default function ProdutosPage() {
             <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: '1rem', alignItems: 'end' }}>
               <Input
                 label="Custo (R$)"
-                type="number"
-                step="0.01"
-                min="0"
+                type="text"
+                inputMode="decimal"
+                placeholder="Ex: 10,50"
                 value={formData.custo_aquisicao === 0 ? '' : formData.custo_aquisicao}
-                onChange={(e) => setFormData({...formData, custo_aquisicao: parseFloat(e.target.value)})}
+                onChange={(e) => {
+                  const val = e.target.value.replace(',', '.');
+                  if (val === '' || /^\d*\.?\d*$/.test(val)) {
+                    setFormData({...formData, custo_aquisicao: val as any});
+                  }
+                }}
                 required
               />
               <Input
                 label="Preço de Venda (R$)"
-                type="number"
-                step="0.01"
-                min="0"
+                type="text"
+                inputMode="decimal"
+                placeholder="Ex: 25,90"
                 value={formData.preco_venda_sugerido === 0 ? '' : formData.preco_venda_sugerido}
-                onChange={(e) => setFormData({...formData, preco_venda_sugerido: parseFloat(e.target.value)})}
+                onChange={(e) => {
+                  const val = e.target.value.replace(',', '.');
+                  if (val === '' || /^\d*\.?\d*$/.test(val)) {
+                    setFormData({...formData, preco_venda_sugerido: val as any});
+                  }
+                }}
                 required
               />
             </div>
