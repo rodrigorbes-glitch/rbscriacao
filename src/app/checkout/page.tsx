@@ -156,6 +156,7 @@ export default function CheckoutPage() {
         paymentToken: mpFormData.token || null,
         issuerId: mpFormData.issuer_id || null,
         installments: mpFormData.installments || 1,
+        payer: mpFormData.payer,
         user_id: user?.uid,
         pedidoId
       };
