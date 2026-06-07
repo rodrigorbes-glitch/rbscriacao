@@ -126,7 +126,7 @@ export default function CheckoutPage() {
       const enderecoCompleto = `${formData.endereco}, ${formData.numero}${formData.complemento ? ' - ' + formData.complemento : ''}, ${formData.bairro}, ${formData.cidade} - ${formData.estado}, CEP: ${formData.cep}`;
       
       const itensPedido = items.map(item => ({
-        id_produto: item.id.replace(/_copia_\d+$/, ''),
+        id_produto: item.id as string,
         nome: item.nome,
         quantidade: item.quantidade,
         preco_unitario: item.preco_venda_sugerido

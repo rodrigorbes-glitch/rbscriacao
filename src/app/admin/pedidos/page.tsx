@@ -86,12 +86,14 @@ export default function PedidosPage() {
   };
 
   const translateStatus = (status: Pedido['status']) => {
-    const map = {
+    const map: Record<string, string> = {
       'pendente': 'Pendente (Aguardando Pgto)',
+      'pago': 'Pago (Em Análise)',
       'confirmado': 'Pago / Confirmado',
       'enviado': 'Em Trânsito / Enviado',
       'entregue': 'Entregue',
-      'cancelado': 'Cancelado'
+      'cancelado': 'Cancelado',
+      'rejeitado': 'Pagamento Rejeitado'
     };
     return map[status] || status;
   };

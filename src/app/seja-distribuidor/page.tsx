@@ -41,7 +41,7 @@ export default function SejaDistribuidorPage() {
             <p style={{ fontSize: '1.25rem', opacity: 0.9, marginBottom: '3rem', lineHeight: 1.6 }}>
               Aumente sua margem de lucro revendendo produtos exclusivos e de alta qualidade. Junte-se à rede de parceiros Aura Premium e tenha suporte completo para fazer o seu negócio crescer.
             </p>
-            <Button size="lg" onClick={handleWhatsApp} style={{ backgroundColor: 'var(--color-accent)', color: '#000', fontSize: '1.1rem', padding: '1rem 3rem' }}>
+            <Button onClick={handleWhatsApp} style={{ backgroundColor: 'var(--color-accent)', color: '#000', fontSize: '1.1rem', padding: '1rem 3rem' }}>
               Falar com um Consultor pelo WhatsApp
             </Button>
           </div>
@@ -125,7 +125,7 @@ export default function SejaDistribuidorPage() {
           <p style={{ fontSize: '1.1rem', color: 'var(--color-text-secondary)', marginBottom: '3rem', maxWidth: '600px', margin: '0 auto 3rem' }}>
             Não perca tempo com formulários complexos. Envie uma mensagem direta e nossa equipe cuidará do seu cadastro.
           </p>
-          <Button size="lg" onClick={handleWhatsApp} style={{ backgroundColor: '#25D366', color: '#fff', fontSize: '1.1rem', padding: '1rem 3rem' }}>
+          <Button onClick={handleWhatsApp} style={{ backgroundColor: '#25D366', color: '#fff', fontSize: '1.1rem', padding: '1rem 3rem' }}>
              WhatsApp: Falar Agora
           </Button>
         </section>
