@@ -133,8 +133,9 @@ export default function CheckoutPage() {
       }));
 
       const pedidoId = await pedidosAPI.create({
-        user_id: user?.uid,
+        user_id: user?.uid || null,
         cliente_nome: formData.nome,
+        cliente_email: formData.email,
         cliente_whatsapp: formData.whatsapp,
         cliente_endereco: enderecoCompleto,
         itens: itensPedido,
@@ -260,23 +261,7 @@ export default function CheckoutPage() {
     return <div className="public-layout" style={{ justifyContent: 'center', alignItems: 'center' }}><div className="auth-spinner"></div></div>;
   }
 
-  // BLINDAGEM: Exige login para finalizar compra
-  if (!user) {
-    return (
-      <div className="public-layout" style={{ justifyContent: 'center', alignItems: 'center', textAlign: 'center' }}>
-        <div style={{ backgroundColor: '#fff', padding: '3rem', borderRadius: 'var(--radius-lg)' }}>
-          <div style={{ fontSize: '3rem', marginBottom: '1rem' }}>🔒</div>
-          <h2 style={{ fontSize: '1.5rem', marginBottom: '1rem' }}>Identificação Necessária</h2>
-          <p style={{ color: 'var(--color-text-secondary)', marginBottom: '2rem' }}>
-            Para sua segurança, faça login ou cadastre-se para prosseguir com o pagamento.
-          </p>
-          <Button onClick={() => router.push('/minha-conta/login')} style={{ width: '100%' }}>
-            Entrar com Segurança
-          </Button>
-        </div>
-      </div>
-    );
-  }
+
 
   if (items.length === 0) {
     return (

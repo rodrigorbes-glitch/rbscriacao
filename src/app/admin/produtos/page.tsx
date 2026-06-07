@@ -2,6 +2,8 @@
 
 import Image from 'next/image';
 import { useState, useEffect, useRef } from 'react';
+import { storage } from '@/services/firebase';
+import { ref, uploadBytes, getDownloadURL } from 'firebase/storage';
 import { produtosAPI } from '@/services/api';
 import { Produto } from '@/types/models';
 import Table, { TableColumn } from '@/components/ui/Table';
@@ -20,59 +22,7 @@ const CATEGORIAS_SUGERIDAS = [
   'Casa e Decoração'
 ];
 
-// Função de Compressão de Imagem no lado do Cliente (Retorna Base64)
-const compressImageToBase64 = (file: File): Promise<string> => {
-  return new Promise((resolve, reject) => {
-    const reader = new FileReader();
-    reader.readAsDataURL(file);
-    reader.onload = (event) => {
-      const img = new Image();
-      img.src = event.target?.result as string;
-      img.onload = () => {
-        const canvas = document.createElement('canvas');
-        const MAX_WIDTH = 600; // Reduzido um pouco para garantir que fique leve (Firestore limite de 1MB)
-        const MAX_HEIGHT = 600;
-        let width = img.width;
-        let height = img.height;
 
-        if (width > height) {
-          if (width > MAX_WIDTH) {
-            height *= MAX_WIDTH / width;
-            width = MAX_WIDTH;
-          }
-        } else {
-          if (height > MAX_HEIGHT) {
-            width *= MAX_HEIGHT / height;
-            height = MAX_HEIGHT;
-          }
-        }
-        canvas.width = width;
-        canvas.height = height;
-        const ctx = canvas.getContext('2d');
-        
-        // Preenche com fundo branco caso a imagem tenha transparência
-        if (ctx) {
-          ctx.fillStyle = '#FFFFFF';
-          ctx.fillRect(0, 0, width, height);
-          ctx.drawImage(img, 0, 0, width, height);
-        }
-        
-        // Retorna a imagem diretamente como texto (Base64)
-        const base64String = canvas.toDataURL('image/jpeg', 0.7); // 70% de qualidade
-        
-        // Verifica o peso aproximado (Firestore suporta até 1MB por documento)
-        const sizeInBytes = Math.round((base64String.length * 3) / 4);
-        if (sizeInBytes > 900000) {
-          reject(new Error('A imagem é muito complexa e ficou pesada demais mesmo após compressão.'));
-        } else {
-          resolve(base64String);
-        }
-      };
-      img.onerror = (e) => reject(e);
-    };
-    reader.onerror = (e) => reject(e);
-  });
-};
 
 export default function ProdutosPage() {
   const [produtos, setProdutos] = useState<(Produto & { id: string })[]>([]);
@@ -190,11 +140,20 @@ export default function ProdutosPage() {
 
     setIsUploading(true);
     try {
-      const base64DataUrl = await compressImageToBase64(file);
-      setFormData({ ...formData, foto_url: base64DataUrl });
+      // Cria uma referência única no Storage
+      const fileName = `${Date.now()}_${file.name.replace(/[^a-zA-Z0-9.]/g, '')}`;
+      const storageRef = ref(storage, `produtos/${fileName}`);
+      
+      // Faz o upload direto do arquivo original
+      await uploadBytes(storageRef, file);
+      
+      // Pega a URL pública
+      const downloadURL = await getDownloadURL(storageRef);
+      
+      setFormData({ ...formData, foto_url: downloadURL });
     } catch (error: any) {
-      console.error('Erro no processamento da foto:', error);
-      alert(error.message || 'Erro ao processar a foto.');
+      console.error('Erro no upload da foto:', error);
+      alert(error.message || 'Erro ao enviar a foto para a nuvem.');
     } finally {
       setIsUploading(false);
       if (fileInputRef.current) fileInputRef.current.value = '';

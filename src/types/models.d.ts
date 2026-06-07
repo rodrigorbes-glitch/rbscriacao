@@ -99,6 +99,7 @@ export interface Pedido {
   id?: string;
   user_id?: string; // Para ligar o pedido ao usuário logado
   cliente_nome: string;
+  cliente_email?: string;
   cliente_whatsapp: string;
   cliente_endereco: string;
   itens: Array<{
