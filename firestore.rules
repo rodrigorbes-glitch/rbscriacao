@@ -1,0 +1,53 @@
+rules_version = '2';
+
+service cloud.firestore {
+  match /databases/{database}/documents {
+    
+    // FUNÇÕES GERAIS DE SEGURANÇA
+    // Verifica se o usuário que está fazendo a ação está logado no Painel Admin
+    function isAdmin() {
+      return request.auth != null;
+    }
+
+    // NÍVEL 1: VITRINE PÚBLICA (Qualquer um lê, só Admin altera)
+    match /produtos/{document} {
+      allow read: if true;
+      allow write: if isAdmin();
+    }
+    match /configuracoes/{document} {
+      allow read: if true;
+      allow write: if isAdmin();
+    }
+
+    // NÍVEL 2: CAIXA DE CORREIO SEGURA (Anti-Ataques)
+    match /pedidos/{document} {
+      // Admin pode ver a lista inteira, alterar status e apagar se quiser.
+      allow read, update, delete: if isAdmin();
+      
+      // Público SÓ PODE CRIAR novos pedidos (não pode ler nem alterar o que já foi criado)
+      // PROTEÇÃO ANTI-ATAQUE: Só aceita se o campo 'status' existir e for OBRIGATORIAMENTE 'pendente'
+      allow create: if true 
+                    && request.resource.data.keys().hasAny(['status', 'cliente_nome'])
+                    && request.resource.data.status == 'pendente';
+    }
+
+    // NÍVEL 3: COFRE DO ADMIN (Só quem está logado lê ou altera)
+    match /transacoes/{document} {
+      allow read, write: if isAdmin();
+    }
+    match /clientes/{document} {
+      allow read, write: if isAdmin();
+    }
+    match /distribuidores/{document} {
+      allow read, write: if isAdmin();
+    }
+    match /consignacoes/{document} {
+      allow read, write: if isAdmin();
+    }
+    
+    // PROTEÇÃO PADRÃO: Qualquer outra coleção não mapeada aqui ficará trancada.
+    match /{document=**} {
+      allow read, write: if false;
+    }
+  }
+}
