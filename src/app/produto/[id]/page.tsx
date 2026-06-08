@@ -3,13 +3,13 @@ import ProdutoClient from './ProdutoClient';
 import { produtosAPI } from '@/services/api';
 
 type Props = {
-  params: { id: string }
+  params: Promise<{ id: string }>
 };
 
 export async function generateMetadata(
   { params }: Props
 ): Promise<Metadata> {
-  const id = params.id;
+  const { id } = await params;
   
   try {
     const produto = await produtosAPI.getById(id);
