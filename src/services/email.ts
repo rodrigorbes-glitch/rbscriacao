@@ -10,17 +10,21 @@ export const emailService = {
       return false;
     }
 
+    const clienteEmail = pedido.cliente_email ?? 'sem-email@rbscriacao.com';
+    const valorTotal = pedido.valor_total ?? 0;
+    const pedidoId = pedido.id?.substring(0, 8) ?? 'N/A';
+
     try {
       // 1. E-mail para o Cliente
       await resend.emails.send({
-        from: 'RBS Criação <pedidos@seusite.com>', // Atualizar no futuro para o domínio verificado
-        to: pedido.cliente_email || '',
-        subject: `Pagamento Aprovado! Pedido #${pedido.id?.substring(0, 8)}`,
+        from: 'RBS Criação <onboarding@resend.dev>',
+        to: clienteEmail,
+        subject: `Pagamento Aprovado! Pedido #${pedidoId}`,
         html: `
           <div style="font-family: Arial, sans-serif; padding: 20px; color: #333;">
             <h1 style="color: #4CAF50;">Oba! Pagamento Aprovado 🎉</h1>
             <p>Olá <strong>${pedido.cliente_nome}</strong>,</p>
-            <p>Seu pagamento no valor de <strong>R$ ${pedido.valor_total.toFixed(2).replace('.', ',')}</strong> foi confirmado com sucesso.</p>
+            <p>Seu pagamento no valor de <strong>R$ ${valorTotal.toFixed(2).replace('.', ',')}</strong> foi confirmado com sucesso.</p>
             <p>Já estamos preparando o seu pedido e em breve você receberá as informações de rastreio para o endereço:</p>
             <blockquote style="background: #f9f9f9; padding: 10px; border-left: 4px solid #ccc;">
               ${pedido.cliente_endereco}
@@ -32,13 +36,13 @@ export const emailService = {
 
       // 2. E-mail para o Admin (Dono da loja)
       await resend.emails.send({
-        from: 'RBS Loja <sistema@seusite.com>',
-        to: ['rodrigorbes@gmail.com', 'dra.rachelbeatriz@gmail.com'] as string[],
-        subject: `💰 NOVA VENDA PAGA! Pedido #${pedido.id?.substring(0, 8)}`,
+        from: 'RBS Loja <onboarding@resend.dev>',
+        to: ['rodrigorbes@gmail.com', 'dra.rachelbeatriz@gmail.com'],
+        subject: `💰 NOVA VENDA PAGA! Pedido #${pedidoId}`,
         html: `
           <div style="font-family: Arial, sans-serif; padding: 20px; color: #333;">
             <h1 style="color: #4CAF50;">Dinheiro na conta! 💰</h1>
-            <p>O cliente <strong>${pedido.cliente_nome}</strong> acabou de pagar um pedido de <strong>R$ ${pedido.valor_total.toFixed(2).replace('.', ',')}</strong>.</p>
+            <p>O cliente <strong>${pedido.cliente_nome}</strong> acabou de pagar um pedido de <strong>R$ ${valorTotal.toFixed(2).replace('.', ',')}</strong>.</p>
             <p>Acesse o painel administrativo para processar e enviar a mercadoria.</p>
           </div>
         `
