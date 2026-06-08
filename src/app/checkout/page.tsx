@@ -399,8 +399,9 @@ export default function CheckoutPage() {
                      initialization={{
                        amount: totalGeral,
                        payer: {
-                         email: formData.email,
-                       }
+                          email: formData.email,
+                          entity_type: 'individual' as 'individual',
+                        }
                      }}
                      key={freteEscolhido.id} // Chave fixa baseada no frete para evitar duplicação em re-renders
                      customization={{

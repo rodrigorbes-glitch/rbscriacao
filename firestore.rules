@@ -27,11 +27,16 @@ service cloud.firestore {
       // Admin pode ver a lista inteira, alterar status e apagar se quiser.
       allow read, update, delete: if isAdmin();
       
-      // Público SÓ PODE CRIAR novos pedidos (não pode ler nem alterar o que já foi criado)
-      // PROTEÇÃO ANTI-ATAQUE: Só aceita se o campo 'status' existir e for OBRIGATORIAMENTE 'pendente'
+      // Público SÓ PODE CRIAR novos pedidos com status 'pendente'
       allow create: if true 
                     && request.resource.data.keys().hasAny(['status', 'cliente_nome'])
                     && request.resource.data.status == 'pendente';
+
+      // O frontend (não-admin) pode atualizar pedidos para mudar status de pagamento
+      // (ex: pendente -> pago, ou adicionar transacao_id)
+      allow update: if (request.auth != null && request.auth.uid == resource.data.user_id) || 
+                       request.resource.data.diff(resource.data).affectedKeys()
+                       .hasOnly(['status', 'transacao_id', 'updatedAt']);
     }
 
     // NÍVEL 3: COFRE DO ADMIN (Só quem está logado lê ou altera)
