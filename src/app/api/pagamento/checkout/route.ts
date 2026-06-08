@@ -8,8 +8,8 @@ export async function POST(req: Request) {
     const payload = await req.json();
     const { formData, freteEscolhido, carrinho, paymentToken, paymentMethodId, issuerId, installments, payer, user_id, pedidoId } = payload;
 
-    if (!carrinho || carrinho.length === 0 || !formData || !freteEscolhido || !user_id || !pedidoId) {
-      return NextResponse.json({ error: 'Dados incompletos ou sessão inválida para finalizar o checkout.' }, { status: 400 });
+    if (!carrinho || carrinho.length === 0 || !formData || !freteEscolhido || !pedidoId) {
+      return NextResponse.json({ error: 'Dados incompletos para finalizar o checkout.' }, { status: 400 });
     }
 
     // 1. Recalcular Total no Servidor para Evitar Fraudes (Apenas para cobrar o valor exato no MP)
