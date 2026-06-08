@@ -17,7 +17,7 @@ export const emailService = {
     try {
       // 1. E-mail para o Cliente
       await resend.emails.send({
-        from: 'RBS Criação <onboarding@resend.dev>',
+        from: 'RBS Criação <pedidos@rbscriacao.com>',
         to: clienteEmail,
         subject: `Pagamento Aprovado! Pedido #${pedidoId}`,
         html: `
@@ -36,7 +36,7 @@ export const emailService = {
 
       // 2. E-mail para o Admin (Dono da loja)
       await resend.emails.send({
-        from: 'RBS Loja <onboarding@resend.dev>',
+        from: 'RBS Criação <sistema@rbscriacao.com>',
         to: ['rodrigorbes@gmail.com', 'dra.rachelbeatriz@gmail.com'],
         subject: `💰 NOVA VENDA PAGA! Pedido #${pedidoId}`,
         html: `
