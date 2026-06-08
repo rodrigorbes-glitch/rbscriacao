@@ -400,7 +400,7 @@ export default function CheckoutPage() {
                        amount: totalGeral,
                        payer: {
                           email: formData.email,
-                          entity_type: 'individual' as 'individual',
+                          entityType: 'individual' as 'individual',
                         }
                      }}
                      key={freteEscolhido.id} // Chave fixa baseada no frete para evitar duplicação em re-renders
