@@ -112,13 +112,6 @@ export default function ConfiguracoesPage() {
           <form id="config-form" onSubmit={handleSave}>
             <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(300px, 1fr))', gap: '1rem' }}>
               <Input
-                label="Nome Oficial da Loja / Marca"
-                placeholder="Ex: RB Store"
-                value={formData.nome_loja}
-                onChange={(e) => setFormData({...formData, nome_loja: e.target.value})}
-                required
-              />
-              <Input
                 label="WhatsApp de Contato Público"
                 placeholder="(00) 00000-0000"
                 value={formData.telefone_publico}
