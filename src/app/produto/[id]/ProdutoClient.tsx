@@ -20,6 +20,7 @@ export default function ProdutoDetailsPage() {
   const [configuracao, setConfiguracao] = useState<Configuracao | null>(null);
   const [loading, setLoading] = useState(true);
   const [quantidade, setQuantidade] = useState(1);
+  const [currentImage, setCurrentImage] = useState<string>('');
 
   useEffect(() => {
     const loadProduto = async () => {
@@ -29,6 +30,9 @@ export default function ProdutoDetailsPage() {
         const config = await configuracoesAPI.getGeral();
         setProduto(prod);
         setConfiguracao(config);
+        if (prod) {
+          setCurrentImage(prod.foto_url || '');
+        }
       } catch (error) {
         console.error("Erro ao carregar produto:", error);
       } finally {
@@ -169,11 +173,12 @@ export default function ProdutoDetailsPage() {
               alignItems: 'center',
               justifyContent: 'center',
               aspectRatio: '1/1',
-              position: 'relative'
+              position: 'relative',
+              marginBottom: '1rem'
             }}>
               <div style={{ position: 'relative', width: '100%', height: '100%' }}>
                 <Image 
-                  src={produto.foto_url || 'https://via.placeholder.com/600x600?text=Sem+Foto'} 
+                  src={currentImage || 'https://via.placeholder.com/600x600?text=Sem+Foto'} 
                   alt={produto.nome}
                   fill
                   sizes="(max-width: 768px) 100vw, 50vw"
@@ -201,6 +206,38 @@ export default function ProdutoDetailsPage() {
                 )}
               </button>
             </div>
+            
+            {/* MINIATURAS (GALERIA) */}
+            {produto.fotos_adicionais && produto.fotos_adicionais.some(url => url) && (
+              <div style={{ display: 'flex', gap: '0.5rem', overflowX: 'auto', paddingBottom: '0.5rem', scrollbarWidth: 'thin' }}>
+                {[produto.foto_url, ...produto.fotos_adicionais].filter(Boolean).map((imgUrl, idx) => (
+                  <div 
+                    key={idx}
+                    onClick={() => setCurrentImage(imgUrl as string)}
+                    style={{
+                      width: '80px',
+                      height: '80px',
+                      flexShrink: 0,
+                      borderRadius: 'var(--radius-md)',
+                      backgroundColor: '#f8f8f9',
+                      border: currentImage === imgUrl ? '2px solid var(--color-primary)' : '2px solid transparent',
+                      position: 'relative',
+                      cursor: 'pointer',
+                      overflow: 'hidden',
+                      transition: 'border-color 0.2s'
+                    }}
+                  >
+                    <Image 
+                      src={imgUrl as string}
+                      alt={`Miniatura ${idx + 1}`}
+                      fill
+                      sizes="80px"
+                      style={{ objectFit: 'contain', mixBlendMode: 'multiply' }}
+                    />
+                  </div>
+                ))}
+              </div>
+            )}
           </div>
 
           {/* DETALHES DO PRODUTO */}
