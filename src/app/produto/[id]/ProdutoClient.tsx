@@ -9,6 +9,7 @@ import { useCart } from '@/contexts/CartContext';
 import { useFavorites } from '@/contexts/FavoritesContext';
 import Button from '@/components/ui/Button';
 import CartDrawer from '@/components/public/CartDrawer';
+import { convertYouTubeLink } from '@/utils/linkConverter';
 
 export default function ProdutoDetailsPage() {
   const { id } = useParams();
@@ -311,7 +312,7 @@ export default function ProdutoDetailsPage() {
               boxShadow: '0 10px 30px rgba(0,0,0,0.1)'
             }}>
               <iframe 
-                src={produto.video_url} 
+                src={convertYouTubeLink(produto.video_url)} 
                 style={{
                   position: 'absolute',
                   top: 0,

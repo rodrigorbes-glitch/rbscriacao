@@ -44,27 +44,24 @@ export function convertYouTubeLink(url: string | undefined | null): string {
   if (!url) return '';
 
   try {
-    let videoId = '';
-    
-    // Suporta: https://www.youtube.com/watch?v=ID
-    if (url.includes('youtube.com/watch')) {
-      const urlObj = new URL(url);
-      videoId = urlObj.searchParams.get('v') || '';
-    } 
-    // Suporta: https://youtu.be/ID
-    else if (url.includes('youtu.be/')) {
-      videoId = url.split('youtu.be/')[1].split('?')[0];
-    }
-    // Suporta: https://www.youtube.com/embed/ID
-    else if (url.includes('youtube.com/embed/')) {
-      return url; // Já é embed
+    // Já é embed
+    if (url.includes('youtube.com/embed/')) {
+      return url;
     }
 
-    if (videoId) {
+    let videoId = '';
+
+    // Regex para pegar o ID do vídeo de praticamente qualquer formato de URL do YouTube
+    const ytRegex = /(?:youtube\.com\/(?:[^\/]+\/.+\/|(?:v|e(?:mbed)?)\/|.*[?&]v=)|youtu\.be\/|youtube\.com\/shorts\/)([^"&?\/\s]{11})/i;
+    const match = url.match(ytRegex);
+
+    if (match && match[1]) {
+      videoId = match[1];
       return `https://www.youtube.com/embed/${videoId}`;
     }
     
-    return url; // Se não for YouTube, retorna o URL original (caso o usuário coloque um link direto mp4)
+    // Se não for YouTube ou não achar ID, retorna o URL original
+    return url;
   } catch (e) {
     return url;
   }
