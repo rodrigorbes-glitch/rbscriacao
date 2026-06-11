@@ -296,6 +296,37 @@ export default function ProdutoDetailsPage() {
             </div>
           </div>
         </div>
+
+        {/* SEÇÃO DE VÍDEO DO PRODUTO */}
+        {produto.video_url && (
+          <div style={{ marginTop: '4rem' }}>
+            <h2 style={{ fontSize: '1.5rem', fontWeight: 700, marginBottom: '1.5rem', color: 'var(--color-text-primary)' }}>Vídeo do Produto</h2>
+            <div style={{ 
+              position: 'relative', 
+              paddingBottom: '56.25%', /* 16:9 Aspect Ratio */
+              height: 0,
+              overflow: 'hidden',
+              borderRadius: 'var(--radius-lg)',
+              backgroundColor: '#000',
+              boxShadow: '0 10px 30px rgba(0,0,0,0.1)'
+            }}>
+              <iframe 
+                src={produto.video_url} 
+                style={{
+                  position: 'absolute',
+                  top: 0,
+                  left: 0,
+                  width: '100%',
+                  height: '100%',
+                  border: 0
+                }}
+                allow="accelerometer; autoplay; clipboard-write; encrypted-media; gyroscope; picture-in-picture" 
+                allowFullScreen
+                title={`Vídeo do produto ${produto.nome}`}
+              ></iframe>
+            </div>
+          </div>
+        )}
       </main>
       
       <CartDrawer />
