@@ -518,7 +518,7 @@ export default function DistribuidorPerfilPage() {
         isOpen={isConferenciaOpen} 
         onClose={closeConferencia} 
         title="Conferência de Estoque (In Loco)"
-        actions={
+        footer={
           <>
             <Button variant="outline" onClick={closeConferencia}>Cancelar</Button>
             <Button 
