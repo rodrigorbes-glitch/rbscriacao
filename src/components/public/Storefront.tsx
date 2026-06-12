@@ -14,37 +14,15 @@ export default function Storefront({ initialProdutos, initialConfiguracao }: { i
   const [produtos] = useState<Produto[]>(initialProdutos);
   const [configuracao] = useState<Configuracao | null>(initialConfiguracao);
   
-  // Carousel State
   const carouselRef = useRef<HTMLDivElement>(null);
-  const [isCarouselHovered, setIsCarouselHovered] = useState(false);
-  
+
   // Filter & Search State
   const [searchTerm, setSearchTerm] = useState('');
-  const [selectedCategory, setSelectedCategory] = useState('');
-  const [sortBy, setSortBy] = useState('recentes');
   
   const { totalItems, setIsCartOpen, addItem } = useCart();
   const { isFavorite, toggleFavorite, totalFavorites } = useFavorites();
 
-  // Auto-play Carousel Effect
-  useEffect(() => {
-    // Only run if not hovered, ref exists, and there are featured products
-    if (isCarouselHovered || !carouselRef.current || produtos.filter(p => p.destaque).length === 0) return;
-    
-    const intervalId = setInterval(() => {
-      if (carouselRef.current) {
-        const { scrollLeft, scrollWidth, clientWidth } = carouselRef.current;
-        // Se chegou no final (com uma margem de erro de 10px), volta pro começo
-        if (scrollLeft + clientWidth >= scrollWidth - 10) {
-          carouselRef.current.scrollTo({ left: 0, behavior: 'smooth' });
-        } else {
-          carouselRef.current.scrollBy({ left: 260, behavior: 'smooth' }); // Aproximadamente 1 card + gap
-        }
-      }
-    }, 3500); // Roda a cada 3.5 segundos
-    
-    return () => clearInterval(intervalId);
-  }, [isCarouselHovered, produtos]);
+  // Auto-play Carousel Effect removido a pedido do usuário
 
   const scrollCarousel = (direction: 'left' | 'right') => {
     if (carouselRef.current) {
@@ -69,28 +47,16 @@ export default function Storefront({ initialProdutos, initialConfiguracao }: { i
     window.open(`https://wa.me/${phone}?text=${message}`, '_blank');
   };
 
-  // Derivar categorias únicas
-  const categorias = Array.from(new Set(produtos.map(p => p.categoria))).filter(Boolean);
-
-  // Aplicar filtros e ordenação
+  // Aplicar filtros de busca
   const filteredAndSortedProdutos = produtos
     .filter(p => {
-      const matchesSearch = p.nome.toLowerCase().includes(searchTerm.toLowerCase()) || 
-                            (p.descricao && p.descricao.toLowerCase().includes(searchTerm.toLowerCase()));
-      const matchesCategory = selectedCategory ? p.categoria === selectedCategory : true;
-      return matchesSearch && matchesCategory;
+      return p.nome.toLowerCase().includes(searchTerm.toLowerCase()) || 
+             (p.descricao && p.descricao.toLowerCase().includes(searchTerm.toLowerCase()));
     })
     .sort((a, b) => {
-      if (sortBy === 'menor_preco') return a.preco_venda_sugerido - b.preco_venda_sugerido;
-      if (sortBy === 'maior_preco') return b.preco_venda_sugerido - a.preco_venda_sugerido;
-      if (sortBy === 'mais_vendidos') {
-        const aScore = a.destaque ? 1 : 0;
-        const bScore = b.destaque ? 1 : 0;
-        return bScore - aScore;
-      }
       const dateA = a.createdAt || 0;
       const dateB = b.createdAt || 0;
-      return dateB - dateA;
+      return dateB - dateA; // Ordenação padrão por lançamentos (recentes)
     });
 
   const handleProductClick = (produtoId: string) => {
@@ -132,45 +98,62 @@ export default function Storefront({ initialProdutos, initialConfiguracao }: { i
 
   return (
     <div className="public-layout">
-      {/* HEADER MINIMALISTA */}
-      <header className="public-header">
-        {/* BARRA DE BUSCA */}
-        <div style={{ 
-          display: 'flex', alignItems: 'center', gap: '0.5rem',
-          backgroundColor: 'var(--color-bg-secondary)',
-          border: '1px solid var(--color-border)',
-          borderRadius: '999px',
-          padding: '0.4rem 1rem',
-          width: '100%',
-          maxWidth: '380px',
-          transition: 'box-shadow 0.2s ease'
-        }}
-          onFocus={(e) => (e.currentTarget.style.boxShadow = '0 0 0 3px rgba(var(--color-primary-rgb, 139,115,85), 0.15)')}
-          onBlur={(e) => (e.currentTarget.style.boxShadow = 'none')}
-        >
-          <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="var(--color-text-tertiary)" strokeWidth="2.5" strokeLinecap="round" strokeLinejoin="round" style={{ flexShrink: 0 }}>
-            <circle cx="11" cy="11" r="8"/>
-            <line x1="21" y1="21" x2="16.65" y2="16.65"/>
-          </svg>
-          <input
-            type="text"
-            placeholder="Buscar produtos..."
-            value={searchTerm}
-            onChange={(e) => setSearchTerm(e.target.value)}
-            style={{
-              border: 'none', background: 'transparent', outline: 'none',
-              fontSize: '0.875rem', color: 'var(--color-text-primary)',
-              width: '100%',
-            }}
-          />
-          {searchTerm && (
-            <button
-              onClick={() => setSearchTerm('')}
-              style={{ background: 'none', border: 'none', cursor: 'pointer', padding: 0, color: 'var(--color-text-tertiary)', fontSize: '1rem', lineHeight: 1 }}
-            >×</button>
-          )}
+      {/* HEADER MINIMALISTA E FIXO */}
+      <header className="public-header" style={{ position: 'sticky', top: 0, zIndex: 1000, display: 'flex', justifyContent: 'space-between', alignItems: 'center', backgroundColor: 'var(--color-bg-primary)', padding: '1rem 2rem', borderBottom: '1px solid var(--color-border)' }}>
+        
+        {/* MENU HAMBÚRGUER (ESQUERDA) */}
+        <div style={{ display: 'flex', alignItems: 'center' }}>
+          <button 
+            onClick={() => alert("Menu em construção")}
+            style={{ background: 'none', border: 'none', cursor: 'pointer', padding: '0.5rem', display: 'flex', flexDirection: 'column', gap: '4px' }}
+            title="Menu"
+          >
+            <div style={{ width: '24px', height: '3px', backgroundColor: 'var(--color-text-primary)', borderRadius: '2px' }}></div>
+            <div style={{ width: '24px', height: '3px', backgroundColor: 'var(--color-text-primary)', borderRadius: '2px' }}></div>
+            <div style={{ width: '24px', height: '3px', backgroundColor: 'var(--color-text-primary)', borderRadius: '2px' }}></div>
+          </button>
         </div>
 
+        {/* BARRA DE BUSCA (CENTRO) */}
+        <div style={{ flex: 1, display: 'flex', justifyContent: 'center', padding: '0 1rem' }}>
+          <div style={{ 
+            display: 'flex', alignItems: 'center', gap: '0.5rem',
+            backgroundColor: 'var(--color-bg-secondary)',
+            border: '1px solid var(--color-border)',
+            borderRadius: '999px',
+            padding: '0.4rem 1rem',
+            width: '100%',
+            maxWidth: '400px',
+            transition: 'box-shadow 0.2s ease'
+          }}
+            onFocus={(e) => (e.currentTarget.style.boxShadow = '0 0 0 3px rgba(var(--color-primary-rgb, 139,115,85), 0.15)')}
+            onBlur={(e) => (e.currentTarget.style.boxShadow = 'none')}
+          >
+            <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="var(--color-text-tertiary)" strokeWidth="2.5" strokeLinecap="round" strokeLinejoin="round" style={{ flexShrink: 0 }}>
+              <circle cx="11" cy="11" r="8"/>
+              <line x1="21" y1="21" x2="16.65" y2="16.65"/>
+            </svg>
+            <input
+              type="text"
+              placeholder="Pesquisar..."
+              value={searchTerm}
+              onChange={(e) => setSearchTerm(e.target.value)}
+              style={{
+                border: 'none', background: 'transparent', outline: 'none',
+                fontSize: '0.875rem', color: 'var(--color-text-primary)',
+                width: '100%',
+              }}
+            />
+            {searchTerm && (
+              <button
+                onClick={() => setSearchTerm('')}
+                style={{ background: 'none', border: 'none', cursor: 'pointer', padding: 0, color: 'var(--color-text-tertiary)', fontSize: '1.2rem', lineHeight: 1 }}
+              >×</button>
+            )}
+          </div>
+        </div>
+
+        {/* ÍCONES (DIREITA) */}
         <div style={{ display: 'flex', gap: '1.5rem', alignItems: 'center' }}>
           {/* FAVORITOS */}
           <div 
@@ -256,10 +239,6 @@ export default function Storefront({ initialProdutos, initialConfiguracao }: { i
                 <h2 className="section-title-public">🔥 Destaques</h2>
                 <div 
                   className="carousel-wrapper"
-                  onMouseEnter={() => setIsCarouselHovered(true)}
-                  onMouseLeave={() => setIsCarouselHovered(false)}
-                  onTouchStart={() => setIsCarouselHovered(true)} // Pausa ao tocar no celular também
-                  onTouchEnd={() => setIsCarouselHovered(false)}
                 >
                   {/* Left Arrow */}
                   <button className="carousel-arrow carousel-arrow--left" onClick={() => scrollCarousel('left')}>
@@ -334,42 +313,7 @@ export default function Storefront({ initialProdutos, initialConfiguracao }: { i
               </>
             )}
 
-            {/* BARRA DE FILTROS */}
-            <div className="filters-bar" style={{ display: 'flex', flexWrap: 'wrap', gap: '1rem', marginBottom: '2rem', backgroundColor: 'var(--color-bg-secondary)', padding: '1.5rem', borderRadius: 'var(--radius-lg)', border: '1px solid var(--color-border)', alignItems: 'center' }}>
-              <div style={{ flex: '1 1 250px' }}>
-                <input 
-                  type="text" 
-                  placeholder="Pesquisar produto..." 
-                  value={searchTerm}
-                  onChange={(e) => setSearchTerm(e.target.value)}
-                  style={{ width: '100%', padding: '0.75rem 1rem', borderRadius: 'var(--radius-md)', border: '1px solid var(--color-border)', outline: 'none', backgroundColor: 'var(--color-bg-primary)', fontFamily: 'inherit' }}
-                />
-              </div>
-              <div style={{ flex: '1 1 200px' }}>
-                <select 
-                  value={selectedCategory}
-                  onChange={(e) => setSelectedCategory(e.target.value)}
-                  style={{ width: '100%', padding: '0.75rem 1rem', borderRadius: 'var(--radius-md)', border: '1px solid var(--color-border)', outline: 'none', backgroundColor: 'var(--color-bg-primary)', fontFamily: 'inherit', cursor: 'pointer', appearance: 'none', backgroundImage: 'url("data:image/svg+xml,%3Csvg xmlns=\'http://www.w3.org/2000/svg\' width=\'24\' height=\'24\' viewBox=\'0 0 24 24\' fill=\'none\' stroke=\'%23333\' stroke-width=\'2\' stroke-linecap=\'round\' stroke-linejoin=\'round\'%3E%3Cpolyline points=\'6 9 12 15 18 9\'%3E%3C/polyline%3E%3C/svg%3E")', backgroundRepeat: 'no-repeat', backgroundPosition: 'right 0.7rem top 50%', backgroundSize: '1.2rem auto' }}
-                >
-                  <option value="">Todas as Categorias</option>
-                  {categorias.map(cat => (
-                    <option key={cat} value={cat}>{cat}</option>
-                  ))}
-                </select>
-              </div>
-              <div style={{ flex: '1 1 200px' }}>
-                <select 
-                  value={sortBy}
-                  onChange={(e) => setSortBy(e.target.value)}
-                  style={{ width: '100%', padding: '0.75rem 1rem', borderRadius: 'var(--radius-md)', border: '1px solid var(--color-border)', outline: 'none', backgroundColor: 'var(--color-bg-primary)', fontFamily: 'inherit', cursor: 'pointer', appearance: 'none', backgroundImage: 'url("data:image/svg+xml,%3Csvg xmlns=\'http://www.w3.org/2000/svg\' width=\'24\' height=\'24\' viewBox=\'0 0 24 24\' fill=\'none\' stroke=\'%23333\' stroke-width=\'2\' stroke-linecap=\'round\' stroke-linejoin=\'round\'%3E%3Cpolyline points=\'6 9 12 15 18 9\'%3E%3C/polyline%3E%3C/svg%3E")', backgroundRepeat: 'no-repeat', backgroundPosition: 'right 0.7rem top 50%', backgroundSize: '1.2rem auto' }}
-                >
-                  <option value="recentes">Lançamentos</option>
-                  <option value="mais_vendidos">Mais Vendidos</option>
-                  <option value="menor_preco">Menor Preço</option>
-                  <option value="maior_preco">Maior Preço</option>
-                </select>
-              </div>
-            </div>
+            {/* BARRA DE FILTROS REMOVIDA A PEDIDO DO USUÁRIO */}
 
             {/* GRID CONTÍNUO (TODOS OS PRODUTOS) */}
             <h2 className="section-title-public" style={{ marginTop: '2rem' }}>Catálogo Completo</h2>
