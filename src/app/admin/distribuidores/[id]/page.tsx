@@ -213,7 +213,7 @@ export default function DistribuidorPerfilPage() {
 
     let comissao = 0;
     if (tipoComissao === 'percentual') {
-      comissao = bruto * (distribuidor.percentual_comissao / 100);
+      comissao = bruto * ((distribuidor?.percentual_comissao || 0) / 100);
     } else {
       comissao = valorComissaoFixo;
     }
@@ -590,7 +590,7 @@ export default function DistribuidorPerfilPage() {
                   value={tipoComissao} 
                   onChange={(e) => setTipoComissao(e.target.value as 'percentual' | 'fixo')}
                 >
-                  <option value="percentual">Percentual do Perfil ({distribuidor.percentual_comissao}%)</option>
+                  <option value="percentual">Percentual do Perfil ({distribuidor?.percentual_comissao || 0}%)</option>
                   <option value="fixo">Valor Fixo Total em R$</option>
                 </select>
               </div>
