@@ -35,6 +35,13 @@ export default function DistribuidorPerfilPage() {
   const [selectedProductQtd, setSelectedProductQtd] = useState<number>(1);
   const [valorArrecadado, setValorArrecadado] = useState<number>(0);
 
+  // Conferencia State
+  const [isConferenciaOpen, setIsConferenciaOpen] = useState(false);
+  const [conferenciaId, setConferenciaId] = useState<string | null>(null);
+  const [conferenciaRestantes, setConferenciaRestantes] = useState<Record<string, number>>({});
+  const [tipoComissao, setTipoComissao] = useState<'percentual' | 'fixo'>('percentual');
+  const [valorComissaoFixo, setValorComissaoFixo] = useState<number>(0);
+
   const loadData = async () => {
     setLoading(true);
     try {
@@ -170,6 +177,83 @@ export default function DistribuidorPerfilPage() {
     }
   };
 
+  const openConferencia = (item: Consignacao & { id: string }) => {
+    setConferenciaId(item.id);
+    const iniciais: Record<string, number> = {};
+    item.produtos_deixados.forEach(p => {
+      iniciais[p.id_produto] = 0; // Por padrão o restante é 0 (vendeu tudo)
+    });
+    setConferenciaRestantes(iniciais);
+    setTipoComissao('percentual');
+    setValorComissaoFixo(0);
+    setIsConferenciaOpen(true);
+  };
+
+  const closeConferencia = () => {
+    setIsConferenciaOpen(false);
+    setConferenciaId(null);
+  };
+
+  const getConferenciaCalculos = () => {
+    const consig = consignacoes.find(c => c.id === conferenciaId);
+    if (!consig) return { bruto: 0, comissao: 0, liquido: 0, custo: 0 };
+
+    let bruto = 0;
+    let custo = 0;
+
+    consig.produtos_deixados.forEach(p => {
+      const prod = produtos.find(pr => pr.id === p.id_produto);
+      if (prod) {
+        const restante = conferenciaRestantes[p.id_produto] || 0;
+        const vendida = Math.max(0, p.quantidade - restante);
+        bruto += vendida * prod.preco_venda_sugerido;
+        custo += vendida * prod.custo_aquisicao;
+      }
+    });
+
+    let comissao = 0;
+    if (tipoComissao === 'percentual') {
+      comissao = bruto * (distribuidor.percentual_comissao / 100);
+    } else {
+      comissao = valorComissaoFixo;
+    }
+
+    const liquido = bruto - comissao;
+    return { bruto, comissao, liquido, custo };
+  };
+
+  const handleFinalizarConferencia = async () => {
+    const { liquido, custo } = getConferenciaCalculos();
+    
+    if (window.confirm(`Confirma o recebimento líquido de R$ ${liquido.toFixed(2)} e encerramento da remessa?`)) {
+      setIsSubmitting(true);
+      try {
+        // Atualiza status da consignação
+        await consignacoesAPI.update(conferenciaId!, { status: 'concluida' });
+
+        // Gera a transação financeira
+        if (liquido > 0) {
+          await transacoesAPI.create({
+            tipo: 'venda_consignada',
+            valor_total: liquido,
+            lucro_estimado: liquido - custo,
+            data: Date.now(),
+            referencia: `Acerto Distribuidor: ${distribuidor?.nome_loja}`
+          });
+        }
+        
+        alert("Conferência finalizada com sucesso!");
+        await loadData();
+        closeConferencia();
+      } catch (e) {
+        console.error(e);
+        alert("Erro ao finalizar conferência.");
+      } finally {
+        setIsSubmitting(false);
+      }
+    }
+  };
+
   if (loading) return <div style={{ padding: '4rem', textAlign: 'center' }}><div className="auth-spinner" style={{ margin: '0 auto' }}></div><p style={{ marginTop: '1rem' }}>Carregando Perfil...</p></div>;
   if (!distribuidor) return <div style={{ padding: '4rem', textAlign: 'center' }}><h2>Distribuidor não encontrado.</h2><Button onClick={() => router.push('/admin/distribuidores')} style={{ marginTop: '1rem' }}>Voltar</Button></div>;
 
@@ -188,7 +272,10 @@ export default function DistribuidorPerfilPage() {
       }
     },
     { key: 'actions', header: 'Ações', render: (item) => (
-        <div className="table-actions">
+        <div className="table-actions" style={{ gap: '0.5rem' }}>
+          {item.status === 'pendente' && (
+            <Button onClick={() => openConferencia(item)} style={{ padding: '0.25rem 0.5rem', fontSize: '0.75rem', backgroundColor: 'var(--color-primary)' }}>Conferir</Button>
+          )}
           <Button variant="outline" onClick={() => openModal(item)} style={{ padding: '0.25rem 0.5rem', fontSize: '0.75rem' }}>Ver/Editar</Button>
           <Button variant="outline" onClick={() => handleDelete(item.id)} style={{ padding: '0.25rem 0.5rem', fontSize: '0.75rem', borderColor: 'var(--color-danger)', color: 'var(--color-danger)' }}>🗑️</Button>
         </div>
@@ -424,6 +511,129 @@ export default function DistribuidorPerfilPage() {
           
           <button type="submit" style={{ display: 'none' }}>Salvar</button>
         </form>
+      </Modal>
+
+      {/* MODAL DE CONFERÊNCIA IN LOCO */}
+      <Modal 
+        isOpen={isConferenciaOpen} 
+        onClose={closeConferencia} 
+        title="Conferência de Estoque (In Loco)"
+        actions={
+          <>
+            <Button variant="outline" onClick={closeConferencia}>Cancelar</Button>
+            <Button 
+              onClick={handleFinalizarConferencia} 
+              disabled={isSubmitting || getConferenciaCalculos().liquido <= 0}
+              style={{ backgroundColor: '#10B981', color: '#fff' }}
+            >
+              {isSubmitting ? 'Finalizando...' : 'Finalizar e Receber'}
+            </Button>
+          </>
+        }
+      >
+        <div style={{ display: 'flex', flexDirection: 'column', gap: '1.5rem' }}>
+          <p style={{ color: 'var(--color-text-secondary)', fontSize: '0.875rem' }}>
+            Faça a contagem física no local. Digite a **Quantidade Restante** (o que sobrou) e o sistema calculará as vendas automaticamente.
+          </p>
+
+          <div style={{ border: '1px solid var(--color-border)', borderRadius: 'var(--radius-md)', overflow: 'hidden' }}>
+            <table style={{ width: '100%', borderCollapse: 'collapse', fontSize: '0.875rem' }}>
+              <thead style={{ backgroundColor: 'var(--color-bg-secondary)', borderBottom: '1px solid var(--color-border)' }}>
+                <tr>
+                  <th style={{ padding: '0.75rem', textAlign: 'left' }}>Produto</th>
+                  <th style={{ padding: '0.75rem', textAlign: 'center' }}>Deixado</th>
+                  <th style={{ padding: '0.75rem', textAlign: 'center', backgroundColor: '#FEF3C7' }}>Restante</th>
+                  <th style={{ padding: '0.75rem', textAlign: 'center' }}>Vendido</th>
+                  <th style={{ padding: '0.75rem', textAlign: 'right' }}>Subtotal</th>
+                </tr>
+              </thead>
+              <tbody>
+                {consignacoes.find(c => c.id === conferenciaId)?.produtos_deixados.map(p => {
+                  const prod = produtos.find(pr => pr.id === p.id_produto);
+                  if (!prod) return null;
+                  const restante = conferenciaRestantes[p.id_produto] || 0;
+                  const vendida = Math.max(0, p.quantidade - restante);
+                  const subtotal = vendida * prod.preco_venda_sugerido;
+
+                  return (
+                    <tr key={p.id_produto} style={{ borderBottom: '1px solid var(--color-border)' }}>
+                      <td style={{ padding: '0.75rem' }}>{prod.nome}</td>
+                      <td style={{ padding: '0.75rem', textAlign: 'center', color: 'var(--color-text-tertiary)' }}>{p.quantidade}</td>
+                      <td style={{ padding: '0.5rem', textAlign: 'center', backgroundColor: '#FEF3C7' }}>
+                        <input 
+                          type="number" min="0" max={p.quantidade}
+                          value={restante.toString()}
+                          onChange={(e) => setConferenciaRestantes(prev => ({ ...prev, [p.id_produto]: parseInt(e.target.value) || 0 }))}
+                          style={{ width: '60px', padding: '0.25rem', textAlign: 'center', border: '1px solid #FCD34D', borderRadius: '4px', fontWeight: 'bold' }}
+                        />
+                      </td>
+                      <td style={{ padding: '0.75rem', textAlign: 'center', fontWeight: 'bold', color: vendida > 0 ? '#10B981' : 'var(--color-text-tertiary)' }}>
+                        {vendida}
+                      </td>
+                      <td style={{ padding: '0.75rem', textAlign: 'right', fontWeight: '600' }}>
+                        {formatCurrency(subtotal)}
+                      </td>
+                    </tr>
+                  );
+                })}
+              </tbody>
+            </table>
+          </div>
+
+          <div style={{ backgroundColor: 'var(--color-bg-secondary)', padding: '1rem', borderRadius: 'var(--radius-md)', display: 'flex', flexDirection: 'column', gap: '1rem' }}>
+            <h4 style={{ fontSize: '1rem', fontWeight: 700 }}>Acerto de Comissões</h4>
+            <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: '1rem', alignItems: 'center' }}>
+              <div>
+                <label className="form-label">Cálculo da Comissão</label>
+                <select 
+                  className="input-field" 
+                  value={tipoComissao} 
+                  onChange={(e) => setTipoComissao(e.target.value as 'percentual' | 'fixo')}
+                >
+                  <option value="percentual">Percentual do Perfil ({distribuidor.percentual_comissao}%)</option>
+                  <option value="fixo">Valor Fixo Total em R$</option>
+                </select>
+              </div>
+              <div>
+                {tipoComissao === 'fixo' && (
+                  <>
+                    <label className="form-label">Valor que fica com o Distribuidor</label>
+                    <div style={{ display: 'flex', alignItems: 'center', gap: '0.5rem' }}>
+                      <span style={{ fontWeight: 'bold' }}>R$</span>
+                      <input 
+                        type="number" step="0.01" min="0" className="input-field"
+                        value={valorComissaoFixo || ''} 
+                        onChange={(e) => setValorComissaoFixo(parseFloat(e.target.value) || 0)}
+                      />
+                    </div>
+                  </>
+                )}
+              </div>
+            </div>
+          </div>
+
+          {(() => {
+            const { bruto, comissao, liquido } = getConferenciaCalculos();
+            return (
+              <div style={{ padding: '1.5rem', backgroundColor: '#1A1A1A', color: '#fff', borderRadius: 'var(--radius-md)' }}>
+                <div style={{ display: 'flex', justifyContent: 'space-between', marginBottom: '0.5rem' }}>
+                  <span style={{ color: '#aaa' }}>Total Vendido (Bruto):</span>
+                  <span style={{ fontWeight: 'bold' }}>{formatCurrency(bruto)}</span>
+                </div>
+                <div style={{ display: 'flex', justifyContent: 'space-between', marginBottom: '1rem' }}>
+                  <span style={{ color: '#aaa' }}>Comissão Distribuidor:</span>
+                  <span style={{ fontWeight: 'bold', color: '#F87171' }}>- {formatCurrency(comissao)}</span>
+                </div>
+                <div style={{ height: '1px', backgroundColor: '#333', marginBottom: '1rem' }}></div>
+                <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
+                  <span style={{ fontSize: '1.25rem', fontWeight: 'bold' }}>Receber Agora (Líquido):</span>
+                  <span style={{ fontSize: '1.75rem', fontWeight: '900', color: '#4ADE80' }}>{formatCurrency(liquido)}</span>
+                </div>
+              </div>
+            );
+          })()}
+
+        </div>
       </Modal>
     </div>
   );
