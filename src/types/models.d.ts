@@ -12,6 +12,7 @@ export interface Produto {
   video_url?: string; // Link para YouTube ou vídeo MP4/Drive
   categoria: string;
   destaque?: boolean;
+  etiqueta?: string; // Ex: "Promoção", "Mais Vendido"
   dimensoes?: {
     peso: number; // em kg
     altura: number; // em cm

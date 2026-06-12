@@ -55,6 +55,7 @@ export default function ProdutosPage() {
     fotos_adicionais: ['', '', '', '', '', ''],
     video_url: '',
     destaque: false,
+    etiqueta: '',
     dimensoes: { peso: 0.3, altura: 15, largura: 15, comprimento: 15 }
   });
 
@@ -119,6 +120,7 @@ export default function ProdutosPage() {
            : ['', '', '', '', '', ''],
         video_url: produto.video_url || '',
         destaque: produto.destaque || false,
+        etiqueta: produto.etiqueta || '',
         dimensoes: produto.dimensoes || { peso: 0.3, altura: 15, largura: 15, comprimento: 15 }
       });
       setDimensaoPreset('Personalizado');
@@ -135,6 +137,7 @@ export default function ProdutosPage() {
         fotos_adicionais: ['', '', '', '', '', ''],
         video_url: '',
         destaque: false,
+        etiqueta: '',
         dimensoes: { peso: 0.3, altura: 15, largura: 15, comprimento: 15 }
       });
       setDimensaoPreset('Caixa Padrão (15x15x15cm, 300g)');
@@ -496,6 +499,18 @@ export default function ProdutosPage() {
               />
               <span style={{ fontWeight: 600 }}>🔥 Exibir como Destaque na Página Pública</span>
             </label>
+          </div>
+
+          <div style={{ marginTop: '1rem' }}>
+            <Input
+              label="Etiqueta do Produto (Opcional)"
+              placeholder='Ex: "Mais Vendido", "Promoção 50%", "⏳ Tempo Limitado"'
+              value={formData.etiqueta || ''}
+              onChange={(e) => setFormData({...formData, etiqueta: e.target.value})}
+            />
+            <p style={{ fontSize: '0.75rem', color: 'var(--color-text-tertiary)', marginTop: '0.25rem' }}>
+              Você pode digitar texto livre e até mesmo incluir emojis (ex: 🔥, ⏳, ✨). Deixe em branco se não quiser nenhuma etiqueta.
+            </p>
           </div>
 
           <div style={{ marginTop: '1.5rem', padding: '1.5rem', border: '1px dashed var(--color-border)', borderRadius: 'var(--radius-md)', backgroundColor: 'var(--color-bg-primary)' }}>

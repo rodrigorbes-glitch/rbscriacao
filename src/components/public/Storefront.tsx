@@ -249,6 +249,17 @@ export default function Storefront({ initialProdutos, initialConfiguracao }: { i
                     {produtos.filter(p => p.destaque === true).map(produto => (
                 <div key={produto.id} className="product-card-public" onClick={() => handleProductClick(produto.id as string)} style={{ cursor: 'pointer' }}>
                   <div className="product-card-image-wrapper" style={{ position: 'relative', aspectRatio: '1/1', overflow: 'hidden' }}>
+                    {produto.etiqueta && (
+                      <div style={{
+                        position: 'absolute', top: '10px', left: '10px', zIndex: 3,
+                        backgroundColor: 'var(--color-primary)', color: '#fff',
+                        padding: '4px 10px', borderRadius: '4px',
+                        fontSize: '0.75rem', fontWeight: 'bold', letterSpacing: '0.05em',
+                        boxShadow: '0 2px 4px rgba(0,0,0,0.2)'
+                      }}>
+                        {produto.etiqueta}
+                      </div>
+                    )}
                     <Image 
                       src={produto.foto_url || 'https://via.placeholder.com/300x300?text=Sem+Foto'} 
                       alt={produto.nome} 
@@ -327,6 +338,17 @@ export default function Storefront({ initialProdutos, initialConfiguracao }: { i
                 {filteredAndSortedProdutos.map(produto => (
                 <div key={produto.id} className="product-card-public" style={{ minWidth: 'auto', cursor: 'pointer' }} onClick={() => handleProductClick(produto.id as string)}>
                   <div className="product-card-image-wrapper" style={{ position: 'relative', aspectRatio: '1/1', overflow: 'hidden' }}>
+                    {produto.etiqueta && (
+                      <div style={{
+                        position: 'absolute', top: '10px', left: '10px', zIndex: 3,
+                        backgroundColor: 'var(--color-primary)', color: '#fff',
+                        padding: '4px 10px', borderRadius: '4px',
+                        fontSize: '0.75rem', fontWeight: 'bold', letterSpacing: '0.05em',
+                        boxShadow: '0 2px 4px rgba(0,0,0,0.2)'
+                      }}>
+                        {produto.etiqueta}
+                      </div>
+                    )}
                     <Image 
                       src={produto.foto_url || 'https://via.placeholder.com/300x300?text=Sem+Foto'} 
                       alt={produto.nome} 

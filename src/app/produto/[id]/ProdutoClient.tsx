@@ -243,8 +243,20 @@ export default function ProdutoDetailsPage() {
 
           {/* DETALHES DO PRODUTO */}
           <div style={{ flex: '1 1 400px', display: 'flex', flexDirection: 'column', gap: '1.5rem' }}>
-            <div style={{ fontSize: '0.875rem', color: 'var(--color-text-secondary)', textTransform: 'uppercase', letterSpacing: '1px' }}>
-              {produto.categoria}
+            <div style={{ display: 'flex', alignItems: 'center', gap: '1rem', flexWrap: 'wrap' }}>
+              <div style={{ fontSize: '0.875rem', color: 'var(--color-text-secondary)', textTransform: 'uppercase', letterSpacing: '1px' }}>
+                {produto.categoria}
+              </div>
+              {produto.etiqueta && (
+                <div style={{
+                  backgroundColor: 'var(--color-primary)', color: '#fff',
+                  padding: '4px 10px', borderRadius: '4px',
+                  fontSize: '0.75rem', fontWeight: 'bold', letterSpacing: '0.05em',
+                  boxShadow: '0 2px 4px rgba(0,0,0,0.2)'
+                }}>
+                  {produto.etiqueta}
+                </div>
+              )}
             </div>
             <h1 style={{ fontSize: '2.5rem', fontWeight: 800, color: 'var(--color-text-primary)', lineHeight: 1.2 }}>
               {produto.nome}
