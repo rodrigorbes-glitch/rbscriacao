@@ -1,0 +1,31 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 800 800" width="800" height="800">
+    <defs>
+      <radialGradient id="studioBg" cx="50%" cy="40%" r="70%">
+        <stop offset="0%" stop-color="#27272A"/>
+        <stop offset="100%" stop-color="#0F172A"/>
+      </radialGradient>
+      <linearGradient id="partGrad" x1="0%" y1="0%" x2="100%" y2="100%">
+        <stop offset="0%" stop-color="#94A3B8"/>
+        <stop offset="100%" stop-color="#475569"/>
+      </linearGradient>
+      <pattern id="layers" width="800" height="6" patternUnits="userSpaceOnUse">
+        <line x1="0" y1="3" x2="800" y2="3" stroke="rgba(255,255,255,0.14)" stroke-width="1"/>
+      </pattern>
+    </defs>
+    <rect width="800" height="800" fill="url(#studioBg)"/>
+    <ellipse cx="400" cy="640" rx="210" ry="38" fill="rgba(0,0,0,0.55)"/>
+    <!-- 3D Printed Object Silhouette with Layer Texture -->
+    <g transform="translate(400, 380)">
+      <path d="M-110,-190 C-150,-80 -165,80 -120,220 L120,220 C165,80 150,-80 110,-190 Z" fill="url(#partGrad)" stroke="rgba(255,255,255,0.22)" stroke-width="3"/>
+      <path d="M-110,-190 C-150,-80 -165,80 -120,220 L120,220 C165,80 150,-80 110,-190 Z" fill="url(#layers)"/>
+      <ellipse cx="0" cy="-190" rx="110" ry="24" fill="#475569" stroke="rgba(255,255,255,0.35)" stroke-width="2"/>
+      <!-- Geometric Voronoi Ribs -->
+      <path d="M-85,-120 L0,-40 L85,-120 M-110,10 L0,95 L110,10 M0,-166 L0,220" stroke="rgba(255,255,255,0.25)" stroke-width="4" fill="none"/>
+    </g>
+    <!-- Studio Technical Badge -->
+    <rect x="44" y="44" width="280" height="42" rx="21" fill="rgba(24,24,27,0.85)" stroke="rgba(255,255,255,0.15)"/>
+    <text x="68" y="70" fill="#FAFAFA" font-family="system-ui, sans-serif" font-size="15" font-weight="600">RBS CRIAÇÃO • MANUFATURA 3D</text>
+    <rect x="44" y="690" width="712" height="68" rx="16" fill="rgba(15,23,42,0.82)" stroke="rgba(255,255,255,0.12)"/>
+    <text x="72" y="720" fill="#F8FAFC" font-family="system-ui, sans-serif" font-size="20" font-weight="700">Escultura Minimalista Atelier 8K</text>
+    <text x="72" y="744" fill="#94A3B8" font-family="monospace" font-size="14">Resina SLA Cinza Galeria • 0.05mm  |  Dimensões: 110 × 110 × 210 mm</text>
+  </svg>

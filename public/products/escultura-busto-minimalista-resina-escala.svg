@@ -1,0 +1,20 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 800 800" width="800" height="800">
+    <rect width="800" height="800" fill="#18181B"/>
+    <!-- Technical Grid -->
+    <g stroke="rgba(255,255,255,0.07)" stroke-width="1">
+      <line x1="100" y1="0" x2="100" y2="800"/><line x1="200" y1="0" x2="200" y2="800"/><line x1="300" y1="0" x2="300" y2="800"/>
+      <line x1="400" y1="0" x2="400" y2="800"/><line x1="500" y1="0" x2="500" y2="800"/><line x1="600" y1="0" x2="600" y2="800"/><line x1="700" y1="0" x2="700" y2="800"/>
+      <line x1="0" y1="100" x2="800" y2="100"/><line x1="0" y1="200" x2="800" y2="200"/><line x1="0" y1="300" x2="800" y2="300"/>
+      <line x1="0" y1="400" x2="800" y2="400"/><line x1="0" y1="500" x2="800" y2="500"/><line x1="0" y1="600" x2="800" y2="600"/>
+    </g>
+    <!-- Object silhouette -->
+    <rect x="260" y="180" width="240" height="420" rx="28" fill="#94A3B8" fill-opacity="0.85" stroke="#FAFAFA" stroke-width="3"/>
+    <!-- Dimension arrows -->
+    <line x1="540" y1="180" x2="540" y2="600" stroke="#F97316" stroke-width="3"/>
+    <line x1="525" y1="180" x2="555" y2="180" stroke="#F97316" stroke-width="3"/>
+    <line x1="525" y1="600" x2="555" y2="600" stroke="#F97316" stroke-width="3"/>
+    <text x="565" y="395" fill="#F97316" font-family="monospace" font-size="18" font-weight="700">110 × 110 × 210 mm</text>
+    <line x1="260" y1="640" x2="500" y2="640" stroke="#38BDF8" stroke-width="3"/>
+    <text x="305" y="670" fill="#38BDF8" font-family="monospace" font-size="16" font-weight="700">Escala Real na Bancada</text>
+    <text x="60" y="70" fill="#FAFAFA" font-family="monospace" font-size="18" font-weight="700">GABARITO DIMENSIONAL • ESCULTURA MINIMALISTA ATELIER 8K</text>
+  </svg>
