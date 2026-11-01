@@ -5,7 +5,7 @@
   "scripts": {
     "dev": "next dev",
     "build": "next build",
-    "start": "next start",
+    "start": "node server.js",
     "db:migrate": "tsx scripts/migrate.ts",
     "test": "tsx --test --test-force-exit src/tests/production-readiness.test.ts src/tests/final-acceptance.test.ts src/tests/platform-journey.test.ts src/tests/security-auth.test.ts",
     "lint": "eslint"
