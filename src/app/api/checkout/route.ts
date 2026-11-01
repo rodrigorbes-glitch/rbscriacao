@@ -1,6 +1,7 @@
 import { NextRequest, NextResponse } from 'next/server';
 import { getDb } from '@/db';
 import { createOrderFromSelectiveCart } from '@/lib/cart-checkout';
+import { hashPassword } from '@/lib/auth';
 
 export async function POST(req: NextRequest) {
   try {
@@ -40,7 +41,7 @@ export async function POST(req: NextRequest) {
         `INSERT INTO users (id, name, email, password_hash, role, phone, document_cpf_cnpj, is_active, email_verified)
          VALUES ($1, $2, $3, $4, 'customer', $5, $6, TRUE, TRUE)
          ON CONFLICT (email) DO UPDATE SET updated_at = CURRENT_TIMESTAMP`,
-        [userId, ord.guest_name, ord.guest_email, `rbs_hash:${password}`, ord.guest_phone, ord.guest_cpf_cnpj]
+        [userId, ord.guest_name, ord.guest_email, hashPassword(password), ord.guest_phone, ord.guest_cpf_cnpj]
       );
 
       const usrActual = await db.query<{ id: string }>(

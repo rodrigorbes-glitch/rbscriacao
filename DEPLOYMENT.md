@@ -46,21 +46,24 @@ EMAIL_FROM="RBS Criação <contato@rbscriacao.com>"
 
 ---
 
-## 3. Comandos de Build, Teste e Execução
+## 3. Comandos Separados de Build, Migração e Execução
 
-No diretório `rbscriacao-v3`:
+No ambiente de homologação e produção da Hostinger:
 
 ```bash
 # 1. Instalar dependências exatas
 npm ci
 
-# 2. Executar a suíte de verificação integrada ponta a ponta
+# 2. Executar migrações isoladas no banco de dados (PostgreSQL/PGlite)
+npm run db:migrate
+
+# 3. Executar a suíte de testes de prontidão (19 testes automatizados)
 npm test
 
-# 3. Compilar o bundle otimizado de produção (Next.js 16)
+# 4. Compilar o bundle otimizado de produção (Next.js 16)
 npm run build
 
-# 4. Iniciar o servidor de produção na porta 3000
+# 5. Iniciar o servidor de produção
 npm run start
 ```
 

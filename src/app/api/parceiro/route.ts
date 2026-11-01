@@ -121,8 +121,25 @@ export async function POST(req: NextRequest) {
 
     // Ação A: Baixa de venda em consignação pelo próprio parceiro
     if (action === 'record_consignment_sale') {
-      const { consignmentItemId, qty = 1 } = body;
+      const { consignmentItemId, qty = 1, idempotencyKey, simulateFailureAfterStockUpdate } = body;
       const saleQty = Math.max(1, Number(qty));
+
+      // 1. Idempotency Check: Prevent duplicate sales from network retransmissions
+      if (idempotencyKey) {
+        const idempCode = `CSG-IDEMP-${String(idempotencyKey).trim().slice(0, 48)}`;
+        const existing = await db.query<any>(
+          `SELECT id, gross_amount_cents, net_amount_cents, description FROM financial_entries WHERE entry_code = $1 LIMIT 1`,
+          [idempCode]
+        );
+        if (existing.length > 0) {
+          return NextResponse.json({
+            success: true,
+            replayed: true,
+            message: 'Operação já processada anteriormente (idempotência preservada). Nenhuma baixa ou comissão duplicada.',
+            financialEntryId: existing[0].id,
+          });
+        }
+      }
 
       // CRITICAL SECURITY: Verify this item belongs to the authenticated partner
       const itemRows = await db.query<any>(
@@ -151,57 +168,84 @@ export async function POST(req: NextRequest) {
         );
       }
 
-      // Update sold qty atomically with concurrency lock
-      const updated = await db.query<any>(
-        `UPDATE consignment_items
-         SET sold_qty = sold_qty + $1
-         WHERE id = $2 AND (dispatched_qty - sold_qty - returned_qty - COALESCE(damaged_qty, 0)) >= $1
-         RETURNING id`,
-        [saleQty, item.id]
-      );
+      // Execute in atomic database transaction
+      try {
+        const result = await db.transaction(async (tx) => {
+          // Update sold qty atomically with concurrency lock
+          const updated = await tx.query<any>(
+            `UPDATE consignment_items
+             SET sold_qty = sold_qty + $1
+             WHERE id = $2 AND (dispatched_qty - sold_qty - returned_qty - COALESCE(damaged_qty, 0)) >= $1
+             RETURNING id`,
+            [saleQty, item.id]
+          );
 
-      if (updated.length === 0) {
+          if (updated.length === 0) {
+            throw new Error('CONCURRENCY_LOCKED: Saldo disponível baixado em outra operação simultânea.');
+          }
+
+          // Test verification hook: simulate failure after stock update to verify complete rollback
+          if (simulateFailureAfterStockUpdate) {
+            throw new Error('SIMULATED_TRANSACTION_FAILURE: Erro simulado para verificação de rollback atômico.');
+          }
+
+          const grossCents = saleQty * Number(item.agreed_unit_price_cents);
+          const commPct = Number(item.partner_commission_pct || 20);
+          const commCents = Math.round(grossCents * (commPct / 100));
+          const netRepasseCents = grossCents - commCents;
+          const today = new Date().toISOString().slice(0, 10);
+          const finId = `fin-csg-${Date.now()}`;
+          const entryCode = idempotencyKey
+            ? `CSG-IDEMP-${String(idempotencyKey).trim().slice(0, 48)}`
+            : `CSG-${Math.floor(1000 + Math.random() * 9000)}`;
+
+          // Insert financial entry and commission for this specific partner
+          await tx.query(
+            `INSERT INTO financial_entries (
+              id, entry_code, direction, category_code, accounting_class, description, counterparty_name,
+              reference_type, reference_id, competence_date, due_date,
+              gross_amount_cents, paid_amount_cents, fee_estimated_cents, net_amount_cents, status, account_id
+            ) VALUES ($1,$2,'receivable','consignment_settlement','gross_revenue',$3,'Parceiro Consignado','consignment',$4,$5,$5,$6,$6,0,$6,'paid','acc-bank')`,
+            [
+              finId,
+              entryCode,
+              `Acerto Venda Consignada (${saleQty}x ${item.product_name} — Remessa ${item.shipment_code})`,
+              item.id,
+              today,
+              netRepasseCents,
+            ]
+          );
+
+          await tx.query(
+            `INSERT INTO partner_commissions (
+              id, partner_id, origin_type, calculation_base_cents, commission_rate_pct, commission_amount_cents, status, financial_entry_id
+            ) VALUES ($1,$2,'consignment_sale',$3,$4,$5,'paid',$6)`,
+            [`pcom-${Date.now()}`, partnerId, grossCents, commPct, commCents, finId]
+          );
+
+          return {
+            commCents,
+            grossCents,
+            netRepasseCents,
+          };
+        });
+
+        return NextResponse.json({
+          success: true,
+          message: `${saleQty}x ${item.product_name} baixado(s) com sucesso. Comissão de R$ ${(result.commCents / 100).toFixed(2)} registrada!`,
+        });
+      } catch (txErr: any) {
+        if (txErr.message?.includes('CONCURRENCY_LOCKED')) {
+          return NextResponse.json(
+            { error: 'Não foi possível registrar a venda: o saldo disponível acabou de ser baixado em outra operação simultânea.' },
+            { status: 400 }
+          );
+        }
         return NextResponse.json(
-          { error: 'Não foi possível registrar a venda: o saldo disponível acabou de ser baixado em outra operação simultânea.' },
-          { status: 400 }
+          { error: txErr.message || 'Falha ao processar transação de consignação. Operação revertida integralmente.' },
+          { status: 500 }
         );
       }
-
-      const grossCents = saleQty * Number(item.agreed_unit_price_cents);
-      const commPct = Number(item.partner_commission_pct || 20);
-      const commCents = Math.round(grossCents * (commPct / 100));
-      const netRepasseCents = grossCents - commCents;
-      const today = new Date().toISOString().slice(0, 10);
-      const finId = `fin-csg-${Date.now()}`;
-
-      // Insert financial entry and commission for this specific partner
-      await db.query(
-        `INSERT INTO financial_entries (
-          id, entry_code, direction, category_code, accounting_class, description, counterparty_name,
-          reference_type, reference_id, competence_date, due_date,
-          gross_amount_cents, paid_amount_cents, fee_estimated_cents, net_amount_cents, status, account_id
-        ) VALUES ($1,$2,'receivable','consignment_settlement','gross_revenue',$3,'Parceiro Consignado','consignment',$4,$5,$5,$6,$6,0,$6,'paid','acc-bank')`,
-        [
-          finId,
-          `CSG-${Math.floor(1000 + Math.random() * 9000)}`,
-          `Acerto Venda Consignada (${saleQty}x ${item.product_name} — Remessa ${item.shipment_code})`,
-          item.id,
-          today,
-          netRepasseCents,
-        ]
-      );
-
-      await db.query(
-        `INSERT INTO partner_commissions (
-          id, partner_id, origin_type, calculation_base_cents, commission_rate_pct, commission_amount_cents, status, financial_entry_id
-        ) VALUES ($1,$2,'consignment_sale',$3,$4,$5,'paid',$6)`,
-        [`pcom-${Date.now()}`, partnerId, grossCents, commPct, commCents, finId]
-      );
-
-      return NextResponse.json({
-        success: true,
-        message: `${saleQty}x ${item.product_name} baixado(s) com sucesso. Comissão de R$ ${(commCents / 100).toFixed(2)} registrada!`,
-      });
     }
 
     // Ação B: Pedido de reposição recorrente pelo parceiro

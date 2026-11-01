@@ -102,6 +102,59 @@ export async function POST(req: NextRequest) {
         return NextResponse.json({ success: true });
       }
 
+      case 'refund_order': {
+        const { orderId, refundAmountCents, reason = 'Solicitação de cancelamento/estorno parcial do cliente' } = body;
+        const refundCents = Math.round(Number(refundAmountCents || 0));
+        if (!orderId || refundCents <= 0) {
+          return NextResponse.json({ error: 'ID do pedido e valor de reembolso válidos são obrigatórios.' }, { status: 400 });
+        }
+
+        const ordRows = await db.query<any>('SELECT * FROM orders WHERE id = $1 LIMIT 1', [orderId]);
+        if (ordRows.length === 0) {
+          return NextResponse.json({ error: 'Pedido não encontrado.' }, { status: 404 });
+        }
+
+        const ord = ordRows[0];
+        const isFullRefund = refundCents >= ord.total_cents;
+        const newFinStatus = isFullRefund ? 'refunded' : 'partially_refunded';
+
+        await db.query(
+          `UPDATE orders
+           SET financial_status = $1,
+               updated_at = CURRENT_TIMESTAMP
+           WHERE id = $2`,
+          [newFinStatus, orderId]
+        );
+
+        // Register refund financial debit entry
+        const refundFinId = `fin-ref-${Date.now()}`;
+        const today = new Date().toISOString().slice(0, 10);
+        await db.query(
+          `INSERT INTO financial_entries (
+            id, entry_code, direction, category_code, accounting_class, description, counterparty_name,
+            reference_type, reference_id, competence_date, due_date,
+            gross_amount_cents, paid_amount_cents, fee_estimated_cents, net_amount_cents, status, account_id, paid_at
+          ) VALUES ($1,$2,'payable','customer_refund','deduction_discount',$3,$4,'order',$5,$6,$6,$7,$7,0,$7,'paid','acc-mp',CURRENT_TIMESTAMP)`,
+          [
+            refundFinId,
+            `REF-${ord.order_number}-${Math.floor(100 + Math.random() * 900)}`,
+            `Reembolso (${isFullRefund ? 'Total' : 'Parcial'}) — Pedido ${ord.order_number} (${reason})`,
+            ord.guest_name,
+            ord.id,
+            today,
+            refundCents,
+          ]
+        );
+
+        return NextResponse.json({
+          success: true,
+          orderId,
+          newStatus: newFinStatus,
+          refundAmountCents: refundCents,
+          financialEntryId: refundFinId,
+        });
+      }
+
       case 'create_financial_entry': {
         const id = `fin-man-${Date.now()}`;
         const code = `${body.direction === 'receivable' ? 'REC' : 'PAY'}-MAN-${Math.floor(1000 + Math.random() * 9000)}`;

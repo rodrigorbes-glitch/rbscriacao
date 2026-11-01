@@ -98,9 +98,32 @@ export async function middleware(req: NextRequest) {
     }
   }
 
+  // CSRF Protection for state-changing API endpoints
+  if (pathname.startsWith('/api/') && ['POST', 'PUT', 'PATCH', 'DELETE'].includes(req.method)) {
+    // Exempt public webhooks that authenticate via cryptographic signature headers
+    const isWebhook = pathname.startsWith('/api/checkout') && Boolean(req.headers.get('x-signature') || req.headers.get('x-mp-signature'));
+    if (!isWebhook) {
+      const origin = req.headers.get('origin');
+      const host = req.headers.get('host');
+      if (origin && host) {
+        try {
+          const originHost = new URL(origin).host;
+          // Allow internal domain matching, localhost, and test network IPs
+          const isSameHost = originHost === host;
+          const isAllowedDevOrigin = (originHost === 'localhost' || originHost === '127.0.0.1') && (host.includes('localhost') || host.includes('127.0.0.1'));
+          if (!isSameHost && !isAllowedDevOrigin) {
+            return NextResponse.json({ error: 'Falha de validação CSRF: Origem cruzada não autorizada.' }, { status: 403 });
+          }
+        } catch {
+          return NextResponse.json({ error: 'Cabeçalho de origem inválido na requisição.' }, { status: 403 });
+        }
+      }
+    }
+  }
+
   return NextResponse.next();
 }
 
 export const config = {
-  matcher: ['/admin/:path*', '/parceiros/:path*'],
+  matcher: ['/admin/:path*', '/parceiros/:path*', '/api/:path*'],
 };

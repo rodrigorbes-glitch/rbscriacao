@@ -1,5 +1,6 @@
 import crypto from 'crypto';
 import path from 'path';
+import zlib from 'zlib';
 
 export type QuarantineStatus = 'pending' | 'analyzing' | 'approved' | 'rejected';
 
@@ -78,11 +79,13 @@ export const ALLOWED_EXTENSIONS_MAP: Record<string, { mime: string; magic?: Buff
 };
 
 /**
- * Inspects a ZIP/3MF buffer structure without full extraction:
+ * Inspects a ZIP/3MF buffer structure and verifies actual decompression limits:
  * - Rejects directory traversal ('../' or '..\')
  * - Rejects absolute paths ('/' or 'C:\')
- * - Checks uncompressed size sum against zip-bomb threshold
- * - Limits entries count and directory depth
+ * - Rejects nested archives (.zip, .3mf, .tar, .gz, .7z, .rar)
+ * - Detects falsified/spoofed declared sizes via bounded inflate decompression
+ * - Limits actual uncompressed size sum against zip-bomb threshold (100 MB)
+ * - Limits entries count (max 50) and directory depth (max 3)
  */
 export function inspectArchiveSafety(buffer: Buffer): { safe: boolean; error?: string; totalUncompressed: number; entries: number } {
   let offset = 0;
@@ -97,29 +100,101 @@ export function inspectArchiveSafety(buffer: Buffer): { safe: boolean; error?: s
         return { safe: false, error: `Arquivo compactado excede o limite de ${MAX_ARCHIVE_ENTRIES} itens internos.`, totalUncompressed, entries };
       }
 
+      const compressionMethod = buffer.readUInt16LE(offset + 8);
       const compressedSize = buffer.readUInt32LE(offset + 18);
-      const uncompressedSize = buffer.readUInt32LE(offset + 22);
+      const declaredUncompressedSize = buffer.readUInt32LE(offset + 22);
       const fileNameLen = buffer.readUInt16LE(offset + 26);
       const extraFieldLen = buffer.readUInt16LE(offset + 28);
 
-      totalUncompressed += uncompressedSize;
+      const headerEnd = offset + 30 + fileNameLen + extraFieldLen;
+      if (headerEnd > buffer.length) {
+        return { safe: false, error: 'Arquivo compactado truncado ou corrompido.', totalUncompressed, entries };
+      }
+
+      const rawName = buffer.subarray(offset + 30, offset + 30 + fileNameLen).toString('utf8');
+
+      // 1. Check directory traversal
+      if (rawName.includes('../') || rawName.includes('..\\') || rawName.startsWith('/') || /^[a-zA-Z]:/.test(rawName)) {
+        return { safe: false, error: 'Arquivo compactado contém caminhos de diretório proibidos (tentativa de travessia).', totalUncompressed, entries };
+      }
+
+      // 2. Reject nested archives (anti recursive archive attacks)
+      if (/\.(zip|3mf|tar|gz|7z|rar|bz2|xz)$/i.test(rawName)) {
+        return { safe: false, error: `Arquivo compactado contém arquivo aninhado proibido (${rawName}). Descompactação recursiva não autorizada.`, totalUncompressed, entries };
+      }
+
+      const depth = rawName.split(/[/\\]/).filter(Boolean).length;
+      if (depth > MAX_ARCHIVE_DEPTH) {
+        return { safe: false, error: `Profundidade de pastas no arquivo compactado excede o limite permitido (${MAX_ARCHIVE_DEPTH} níveis).`, totalUncompressed, entries };
+      }
+
+      // 3. Resolve divergence between metadata and actual decompression (Bounded Decompression & Spoof Detection)
+      let actualEntryUncompressed = 0;
+      const remainingGlobalBudget = MAX_UNCOMPRESSED_SIZE_BYTES - totalUncompressed;
+
+      if (remainingGlobalBudget <= 0) {
+        return { safe: false, error: 'Volume descompactado do arquivo excede o limite de segurança de 100 MB (proteção zip-bomb).', totalUncompressed, entries };
+      }
+
+      if (compressionMethod === 0) {
+        // Stored (no compression)
+        actualEntryUncompressed = compressedSize;
+      } else if (compressionMethod === 8) {
+        // Deflated: stream/inflate with bounded buffer
+        const compressedData = buffer.subarray(headerEnd, headerEnd + compressedSize);
+        if (compressedData.length > 0) {
+          try {
+            // maxOutputLength prevents memory expansion if archive has forged headers
+            const inflated = zlib.inflateRawSync(compressedData, {
+              maxOutputLength: Math.min(remainingGlobalBudget, MAX_UNCOMPRESSED_SIZE_BYTES),
+            });
+            actualEntryUncompressed = inflated.length;
+
+            // Detect falsified declared size in header
+            if (declaredUncompressedSize > 0 && Math.abs(actualEntryUncompressed - declaredUncompressedSize) > 0) {
+              if (actualEntryUncompressed > declaredUncompressedSize * 2 + 1024) {
+                return {
+                  safe: false,
+                  error: `Tamanho real descompactado do arquivo difere drasticamente do tamanho declarado no cabeçalho (possível ataque zip-bomb ou cabeçalho forjado).`,
+                  totalUncompressed,
+                  entries,
+                };
+              }
+            }
+          } catch (inflateErr: any) {
+            if (inflateErr.code === 'ERR_BUFFER_TOO_LARGE' || inflateErr.message?.includes('output length')) {
+              return {
+                safe: false,
+                error: 'Volume descompactado do arquivo excede o limite de segurança de 100 MB (proteção zip-bomb).',
+                totalUncompressed,
+                entries,
+              };
+            }
+            // If entry is incomplete/corrupted
+            return {
+              safe: false,
+              error: `Falha ao validar integridade do fluxo compactado (${inflateErr.message || 'dados corrompidos'}).`,
+              totalUncompressed,
+              entries,
+            };
+          }
+        }
+      } else if (compressedSize > 0) {
+        // Unsupported or esoteric compression algorithm
+        return {
+          safe: false,
+          error: `Método de compressão ZIP ${compressionMethod} não suportado para inspeção de segurança.`,
+          totalUncompressed,
+          entries,
+        };
+      }
+
+      totalUncompressed += actualEntryUncompressed;
       if (totalUncompressed > MAX_UNCOMPRESSED_SIZE_BYTES) {
         return { safe: false, error: 'Volume descompactado do arquivo excede o limite de segurança de 100 MB (proteção zip-bomb).', totalUncompressed, entries };
       }
 
-      if (offset + 30 + fileNameLen <= buffer.length) {
-        const rawName = buffer.subarray(offset + 30, offset + 30 + fileNameLen).toString('utf8');
-        // Check directory traversal
-        if (rawName.includes('../') || rawName.includes('..\\') || rawName.startsWith('/') || /^[a-zA-Z]:/.test(rawName)) {
-          return { safe: false, error: 'Arquivo compactado contém caminhos de diretório proibidos (tentativa de travessia).', totalUncompressed, entries };
-        }
-        const depth = rawName.split(/[/\\]/).filter(Boolean).length;
-        if (depth > MAX_ARCHIVE_DEPTH) {
-          return { safe: false, error: `Profundidade de pastas no arquivo compactado excede o limite permitido (${MAX_ARCHIVE_DEPTH} níveis).`, totalUncompressed, entries };
-        }
-      }
-
-      offset += 30 + fileNameLen + extraFieldLen + compressedSize;
+      offset = headerEnd + compressedSize;
     } else {
       offset++;
     }
