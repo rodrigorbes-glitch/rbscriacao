@@ -19,7 +19,7 @@ import {
   inspectArchiveSafety,
   sanitizePlainText,
 } from '../lib/upload-security';
-import { getClientIpSafely } from '../app/api/quotes/route';
+import { getClientIpSafely } from '../lib/rate-limit';
 import { POST as checkoutPost } from '../app/api/checkout/route';
 import { POST as parceiroPost, GET as parceiroGet } from '../app/api/parceiro/route';
 import { POST as adminOperationsPost } from '../app/api/admin/operations/route';

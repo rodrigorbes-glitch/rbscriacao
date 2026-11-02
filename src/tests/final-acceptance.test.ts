@@ -18,7 +18,8 @@ import {
   SESSION_COOKIE_NAME,
 } from '../lib/auth';
 import { NextRequest } from 'next/server';
-import { POST as quotesPost, checkRateLimit, resetRateLimitsForTesting } from '../app/api/quotes/route';
+import { POST as quotesPost } from '../app/api/quotes/route';
+import { checkRateLimit, resetRateLimitsForTesting } from '../lib/rate-limit';
 import { GET as quoteAttachmentGet } from '../app/api/quotes/[quoteId]/attachment/route';
 
 test('1. Upload e Quarentena: Aceitação e Rejeição de Formatos', () => {
