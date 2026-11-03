@@ -93,7 +93,7 @@ export async function POST(req: NextRequest) {
 
     // Audit log
     await db.query(
-      `INSERT INTO audit_logs (id, user_id, user_name, user_role, action, entity_type, entity_id, after_json)
+      `INSERT INTO audit_logs (id, actor_user_id, actor_name, actor_role, action, entity_type, entity_id, after_json)
        VALUES ($1, $2, $3, $4, 'update_settings', 'store_settings', 'brand', $5)`,
       [`aud-${Date.now()}`, session.userId, session.name, session.role, JSON.stringify(updatedBrand)]
     );

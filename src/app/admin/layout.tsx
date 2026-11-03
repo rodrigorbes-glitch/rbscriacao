@@ -34,6 +34,24 @@ const ADMIN_NAV = [
 export default function AdminLayout({ children }: { children: React.ReactNode }) {
   const pathname = usePathname();
   const [sidebarOpen, setSidebarOpen] = useState(false);
+  const [currentUser, setCurrentUser] = useState<{ name: string; email: string; role: string } | null>(null);
+
+  React.useEffect(() => {
+    const fetchSession = async () => {
+      try {
+        const res = await fetch('/api/auth');
+        if (res.ok) {
+          const data = await res.json();
+          if (data.authenticated && data.user) {
+            setCurrentUser(data.user);
+          }
+        }
+      } catch {
+        // ignore
+      }
+    };
+    fetchSession();
+  }, []);
 
   async function handleLogout() {
     await fetch('/api/auth', {
@@ -143,12 +161,26 @@ export default function AdminLayout({ children }: { children: React.ReactNode })
                 Painel RBS • Operação Autoral
               </span>
               <p className="text-[11px] text-[#5A5863]">
-                Perfil: <strong className="text-[#24232A]">Rodrigo Souza (Administrador)</strong>
+                Perfil:{' '}
+                <strong className="text-[#24232A]">
+                  {currentUser
+                    ? `${currentUser.name} (${currentUser.role === 'admin' ? 'Administrador' : currentUser.role})`
+                    : 'Acesso Autorizado'}
+                </strong>
+                {currentUser && <span className="ml-1 text-[#6E6B78] font-mono">[{currentUser.email}]</span>}
               </p>
             </div>
           </div>
 
           <div className="flex items-center gap-2">
+            <button
+              type="button"
+              onClick={handleLogout}
+              className="rounded-xl border border-rose-200 bg-rose-50 px-2.5 py-1 text-xs font-semibold text-rose-700 hover:bg-rose-100 transition cursor-pointer"
+              title="Sair do painel"
+            >
+              Sair
+            </button>
             <Link
               href="/admin/precificador"
               className="rounded-xl border border-[#E6E2DA] bg-white px-3 py-1.5 text-xs font-semibold text-[#24232A] transition hover:border-[#563487] hover:text-[#563487]"

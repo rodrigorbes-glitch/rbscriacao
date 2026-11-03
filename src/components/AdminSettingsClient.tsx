@@ -17,6 +17,13 @@ import {
   Mail,
   Globe,
   Camera as Instagram,
+  KeyRound,
+  Trash2,
+  UserPlus,
+  Eye,
+  EyeOff,
+  X,
+  Check,
 } from 'lucide-react';
 import { formatDateTimeBR } from '@/lib/format';
 
@@ -118,6 +125,167 @@ export function AdminSettingsClient({ team, jobs, audit, initialBrandSettings }:
       setPassMsg({ type: 'error', text: 'Erro de conexão ao alterar senha.' });
     } finally {
       setPassLoading(false);
+    }
+  }
+
+  // Team state and administrative actions
+  const [teamList, setTeamList] = useState(team);
+  const [showCurrentPass, setShowCurrentPass] = useState(false);
+  const [showNewPass, setShowNewPass] = useState(false);
+  const [showConfirmPass, setShowConfirmPass] = useState(false);
+
+  // Modal 1: Redefinir Senha de um Usuário
+  const [resetModal, setResetModal] = useState<{
+    open: boolean;
+    user: any | null;
+    newPassword: string;
+    loading: boolean;
+    error: string;
+    success: string;
+    showPassword: boolean;
+  }>({
+    open: false,
+    user: null,
+    newPassword: '',
+    loading: false,
+    error: '',
+    success: '',
+    showPassword: false,
+  });
+
+  // Modal 2: Novo Usuário
+  const [createModal, setCreateModal] = useState<{
+    open: boolean;
+    name: string;
+    email: string;
+    role: string;
+    password: string;
+    phone: string;
+    loading: boolean;
+    error: string;
+    success: string;
+    showPassword: boolean;
+  }>({
+    open: false,
+    name: '',
+    email: '',
+    role: 'operator',
+    password: '',
+    phone: '',
+    loading: false,
+    error: '',
+    success: '',
+    showPassword: false,
+  });
+
+  // Modal 3: Excluir Usuário
+  const [deleteModal, setDeleteModal] = useState<{
+    open: boolean;
+    user: any | null;
+    loading: boolean;
+    error: string;
+  }>({
+    open: false,
+    user: null,
+    loading: false,
+    error: '',
+  });
+
+  async function handleAdminResetPassword(e: React.FormEvent) {
+    e.preventDefault();
+    if (!resetModal.user) return;
+    if (resetModal.newPassword.length < 8) {
+      setResetModal((prev) => ({ ...prev, error: 'A nova senha deve ter no mínimo 8 caracteres.', success: '' }));
+      return;
+    }
+    setResetModal((prev) => ({ ...prev, loading: true, error: '', success: '' }));
+    try {
+      const res = await fetch('/api/auth', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({
+          action: 'admin_set_password',
+          targetUserId: resetModal.user.id,
+          newPassword: resetModal.newPassword,
+        }),
+      });
+      const data = await res.json();
+      if (!res.ok) {
+        setResetModal((prev) => ({ ...prev, error: data.error || 'Erro ao redefinir senha.', loading: false }));
+      } else {
+        setResetModal((prev) => ({
+          ...prev,
+          loading: false,
+          success: data.message || 'Senha redefinida com sucesso!',
+          newPassword: '',
+        }));
+      }
+    } catch {
+      setResetModal((prev) => ({ ...prev, error: 'Erro de comunicação ao redefinir senha.', loading: false }));
+    }
+  }
+
+  async function handleAdminCreateUser(e: React.FormEvent) {
+    e.preventDefault();
+    if (createModal.password.length < 8) {
+      setCreateModal((prev) => ({ ...prev, error: 'A senha deve ter no mínimo 8 caracteres.', success: '' }));
+      return;
+    }
+    setCreateModal((prev) => ({ ...prev, loading: true, error: '', success: '' }));
+    try {
+      const res = await fetch('/api/auth', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({
+          action: 'admin_create_user',
+          name: createModal.name,
+          email: createModal.email,
+          role: createModal.role,
+          password: createModal.password,
+          phone: createModal.phone,
+        }),
+      });
+      const data = await res.json();
+      if (!res.ok) {
+        setCreateModal((prev) => ({ ...prev, error: data.error || 'Erro ao criar usuário.', loading: false }));
+      } else {
+        setTeamList((prev) => [...prev, data.user]);
+        setCreateModal((prev) => ({
+          ...prev,
+          loading: false,
+          success: data.message || 'Usuário cadastrado com sucesso!',
+          name: '',
+          email: '',
+          password: '',
+          phone: '',
+        }));
+      }
+    } catch {
+      setCreateModal((prev) => ({ ...prev, error: 'Erro de comunicação ao criar usuário.', loading: false }));
+    }
+  }
+
+  async function handleAdminDeleteUser() {
+    if (!deleteModal.user) return;
+    setDeleteModal((prev) => ({ ...prev, loading: true, error: '' }));
+    try {
+      const res = await fetch('/api/auth', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({
+          action: 'admin_delete_user',
+          targetUserId: deleteModal.user.id,
+        }),
+      });
+      const data = await res.json();
+      if (!res.ok) {
+        setDeleteModal((prev) => ({ ...prev, error: data.error || 'Erro ao excluir usuário.', loading: false }));
+      } else {
+        setTeamList((prev) => prev.filter((u) => u.id !== deleteModal.user.id));
+        setDeleteModal({ open: false, user: null, loading: false, error: '' });
+      }
+    } catch {
+      setDeleteModal((prev) => ({ ...prev, error: 'Erro de comunicação ao excluir usuário.', loading: false }));
     }
   }
 
@@ -476,12 +644,35 @@ export function AdminSettingsClient({ team, jobs, audit, initialBrandSettings }:
 
       {/* Tab 2: Equipe & Acessos */}
       {activeTab === 'team' && (
-        <section className="rounded-3xl border border-[#E6E2DA] bg-white p-6 space-y-4">
-          <div className="border-b border-[#E6E2DA] pb-3">
-            <h2 className="text-base font-extrabold text-[#24232A]">Contas, Perfis e Vínculos de Acesso</h2>
-            <p className="text-xs text-[#5A5863]">
-              Gerenciamento com controle rigoroso de papéis (RBAC): Administrador, Operador, Parceiro e Cliente.
-            </p>
+        <section className="rounded-3xl border border-[#E6E2DA] bg-white p-6 space-y-6">
+          <div className="flex flex-wrap items-center justify-between gap-4 border-b border-[#E6E2DA] pb-4">
+            <div>
+              <h2 className="text-base font-extrabold text-[#24232A]">Contas, Perfis e Vínculos de Acesso</h2>
+              <p className="text-xs text-[#5A5863]">
+                Gerenciamento com controle rigoroso de papéis (RBAC): Administrador, Operador, Parceiro e Cliente.
+              </p>
+            </div>
+            <button
+              type="button"
+              onClick={() =>
+                setCreateModal({
+                  open: true,
+                  name: '',
+                  email: '',
+                  role: 'operator',
+                  password: '',
+                  phone: '',
+                  loading: false,
+                  error: '',
+                  success: '',
+                  showPassword: false,
+                })
+              }
+              className="inline-flex items-center gap-2 rounded-xl bg-[#563487] px-3.5 py-2 text-xs font-bold text-white transition hover:bg-[#462970] shadow-xs cursor-pointer"
+            >
+              <UserPlus className="h-4 w-4" />
+              <span>Novo Usuário / Acesso</span>
+            </button>
           </div>
 
           <div className="overflow-x-auto">
@@ -492,11 +683,12 @@ export function AdminSettingsClient({ team, jobs, audit, initialBrandSettings }:
                   <th className="py-2.5 pr-3">E-mail Cadastrado</th>
                   <th className="py-2.5 pr-3">Perfil de Acesso</th>
                   <th className="py-2.5 pr-3">Vínculo & Escopo</th>
-                  <th className="py-2.5 text-right">Status</th>
+                  <th className="py-2.5 pr-3 text-center">Status</th>
+                  <th className="py-2.5 text-right">Ações de Gestão</th>
                 </tr>
               </thead>
               <tbody className="divide-y divide-[#E6E2DA] text-[#24232A]">
-                {team.map((u) => (
+                {teamList.map((u) => (
                   <tr key={u.id} className="hover:bg-[#FCFBF8]">
                     <td className="py-3 pr-3 font-bold text-[#24232A]">{u.name}</td>
                     <td className="py-3 pr-3 font-mono text-[#5A5863]">{u.email}</td>
@@ -524,10 +716,50 @@ export function AdminSettingsClient({ team, jobs, audit, initialBrandSettings }:
                         ? 'Portal do Parceiro (/parceiros)'
                         : 'Área do Cliente (/minha-conta)'}
                     </td>
-                    <td className="py-3 text-right">
+                    <td className="py-3 pr-3 text-center">
                       <span className="rounded bg-emerald-50 text-emerald-800 font-bold px-2 py-0.5 text-[10px]">
                         Ativo
                       </span>
+                    </td>
+                    <td className="py-3 text-right">
+                      <div className="inline-flex items-center gap-2">
+                        <button
+                          type="button"
+                          onClick={() =>
+                            setResetModal({
+                              open: true,
+                              user: u,
+                              newPassword: '',
+                              loading: false,
+                              error: '',
+                              success: '',
+                              showPassword: false,
+                            })
+                          }
+                          className="inline-flex items-center gap-1.5 rounded-lg border border-[#E6E2DA] bg-white px-2.5 py-1 text-[11px] font-semibold text-[#563487] hover:bg-[#F3EFFA] transition cursor-pointer"
+                          title="Redefinir senha deste usuário"
+                        >
+                          <KeyRound className="h-3.5 w-3.5" />
+                          <span>Redefinir Senha</span>
+                        </button>
+
+                        <button
+                          type="button"
+                          onClick={() =>
+                            setDeleteModal({
+                              open: true,
+                              user: u,
+                              loading: false,
+                              error: '',
+                            })
+                          }
+                          className="inline-flex items-center gap-1 rounded-lg border border-rose-200 bg-rose-50 px-2 py-1 text-[11px] font-semibold text-rose-700 hover:bg-rose-100 transition cursor-pointer"
+                          title="Excluir este acesso"
+                        >
+                          <Trash2 className="h-3.5 w-3.5" />
+                          <span>Excluir</span>
+                        </button>
+                      </div>
                     </td>
                   </tr>
                 ))}
@@ -535,14 +767,14 @@ export function AdminSettingsClient({ team, jobs, audit, initialBrandSettings }:
             </table>
           </div>
 
-          {/* Alterar Senha da Conta Conectada */}
-          <div className="mt-6 pt-5 border-t border-[#E6E2DA]">
-            <div className="flex items-center gap-2 mb-3">
+          {/* Alterar Senha da Minha Conta Conectada */}
+          <div className="mt-8 pt-6 border-t border-[#E6E2DA]">
+            <div className="flex items-center gap-2 mb-2">
               <Lock className="w-4 h-4 text-[#563487]" />
-              <h3 className="text-sm font-bold text-[#24232A]">Alterar Senha de Acesso</h3>
+              <h3 className="text-sm font-bold text-[#24232A]">Alterar Senha do Meu Usuário Atual</h3>
             </div>
             <p className="text-xs text-[#5A5863] mb-4">
-              Atualize a senha de login da conta atualmente conectada. A nova senha deve ter no mínimo 8 caracteres.
+              Atualize a senha de login da sua própria conta atualmente conectada.
             </p>
 
             {passMsg && (
@@ -560,36 +792,66 @@ export function AdminSettingsClient({ team, jobs, audit, initialBrandSettings }:
             <form onSubmit={handleChangePassword} className="grid grid-cols-1 sm:grid-cols-3 gap-3">
               <div>
                 <label className="block text-[11px] font-bold text-[#5A5863] mb-1">Senha Atual</label>
-                <input
-                  type="password"
-                  value={currentPass}
-                  onChange={(e) => setCurrentPass(e.target.value)}
-                  placeholder="••••••••"
-                  className="w-full rounded-xl border border-[#E6E2DA] bg-[#FCFBF8] px-3 py-2 text-xs text-[#24232A] focus:border-[#563487] focus:outline-none"
-                />
+                <div className="relative">
+                  <input
+                    type={showCurrentPass ? 'text' : 'password'}
+                    value={currentPass}
+                    onChange={(e) => setCurrentPass(e.target.value)}
+                    placeholder="••••••••"
+                    className="w-full rounded-xl border border-[#E6E2DA] bg-[#FCFBF8] px-3 py-2 pr-9 text-xs text-[#24232A] focus:border-[#563487] focus:outline-none"
+                  />
+                  <button
+                    type="button"
+                    onClick={() => setShowCurrentPass((p) => !p)}
+                    className="absolute top-1/2 right-2.5 -translate-y-1/2 text-[#6E6B78] hover:text-[#24232A] p-0.5"
+                  >
+                    {showCurrentPass ? <EyeOff className="h-3.5 w-3.5" /> : <Eye className="h-3.5 w-3.5" />}
+                  </button>
+                </div>
               </div>
+
               <div>
                 <label className="block text-[11px] font-bold text-[#5A5863] mb-1">Nova Senha (min. 8 caracteres)</label>
-                <input
-                  type="password"
-                  required
-                  value={newPass}
-                  onChange={(e) => setNewPass(e.target.value)}
-                  placeholder="••••••••"
-                  className="w-full rounded-xl border border-[#E6E2DA] bg-[#FCFBF8] px-3 py-2 text-xs text-[#24232A] focus:border-[#563487] focus:outline-none"
-                />
+                <div className="relative">
+                  <input
+                    type={showNewPass ? 'text' : 'password'}
+                    required
+                    value={newPass}
+                    onChange={(e) => setNewPass(e.target.value)}
+                    placeholder="••••••••"
+                    className="w-full rounded-xl border border-[#E6E2DA] bg-[#FCFBF8] px-3 py-2 pr-9 text-xs text-[#24232A] focus:border-[#563487] focus:outline-none"
+                  />
+                  <button
+                    type="button"
+                    onClick={() => setShowNewPass((p) => !p)}
+                    className="absolute top-1/2 right-2.5 -translate-y-1/2 text-[#6E6B78] hover:text-[#24232A] p-0.5"
+                  >
+                    {showNewPass ? <EyeOff className="h-3.5 w-3.5" /> : <Eye className="h-3.5 w-3.5" />}
+                  </button>
+                </div>
               </div>
+
               <div>
                 <label className="block text-[11px] font-bold text-[#5A5863] mb-1">Confirmar Nova Senha</label>
-                <input
-                  type="password"
-                  required
-                  value={confirmPass}
-                  onChange={(e) => setConfirmPass(e.target.value)}
-                  placeholder="••••••••"
-                  className="w-full rounded-xl border border-[#E6E2DA] bg-[#FCFBF8] px-3 py-2 text-xs text-[#24232A] focus:border-[#563487] focus:outline-none"
-                />
+                <div className="relative">
+                  <input
+                    type={showConfirmPass ? 'text' : 'password'}
+                    required
+                    value={confirmPass}
+                    onChange={(e) => setConfirmPass(e.target.value)}
+                    placeholder="••••••••"
+                    className="w-full rounded-xl border border-[#E6E2DA] bg-[#FCFBF8] px-3 py-2 pr-9 text-xs text-[#24232A] focus:border-[#563487] focus:outline-none"
+                  />
+                  <button
+                    type="button"
+                    onClick={() => setShowConfirmPass((p) => !p)}
+                    className="absolute top-1/2 right-2.5 -translate-y-1/2 text-[#6E6B78] hover:text-[#24232A] p-0.5"
+                  >
+                    {showConfirmPass ? <EyeOff className="h-3.5 w-3.5" /> : <Eye className="h-3.5 w-3.5" />}
+                  </button>
+                </div>
               </div>
+
               <div className="sm:col-span-3 flex justify-end">
                 <button
                   type="submit"
@@ -601,6 +863,249 @@ export function AdminSettingsClient({ team, jobs, audit, initialBrandSettings }:
               </div>
             </form>
           </div>
+
+          {/* Modal: Redefinir Senha de Usuário */}
+          {resetModal.open && resetModal.user && (
+            <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/40 p-4 backdrop-blur-xs">
+              <div className="w-full max-w-md rounded-2xl border border-[#E6E2DA] bg-white p-6 shadow-xl space-y-4">
+                <div className="flex items-center justify-between border-b border-[#E6E2DA] pb-3">
+                  <div className="flex items-center gap-2 text-[#563487]">
+                    <KeyRound className="h-5 w-5" />
+                    <h3 className="text-base font-extrabold text-[#24232A]">Redefinir Senha</h3>
+                  </div>
+                  <button
+                    type="button"
+                    onClick={() => setResetModal({ open: false, user: null, newPassword: '', loading: false, error: '', success: '', showPassword: false })}
+                    className="rounded-lg p-1 text-[#5A5863] hover:bg-[#F2EFE9]"
+                  >
+                    <X className="h-4 w-4" />
+                  </button>
+                </div>
+
+                <p className="text-xs text-[#5A5863]">
+                  Defina uma nova senha para <strong className="text-[#24232A]">{resetModal.user.name}</strong> ({resetModal.user.email}). O usuário será desconectado e precisará entrar com a nova senha.
+                </p>
+
+                {resetModal.error && (
+                  <div className="rounded-xl border border-rose-200 bg-rose-50 p-2.5 text-xs font-semibold text-rose-800">
+                    {resetModal.error}
+                  </div>
+                )}
+                {resetModal.success && (
+                  <div className="rounded-xl border border-emerald-200 bg-emerald-50 p-2.5 text-xs font-semibold text-emerald-800">
+                    {resetModal.success}
+                  </div>
+                )}
+
+                <form onSubmit={handleAdminResetPassword} className="space-y-4">
+                  <div>
+                    <label className="block text-[11px] font-bold text-[#5A5863] mb-1">Nova Senha (min. 8 caracteres)</label>
+                    <div className="relative">
+                      <input
+                        type={resetModal.showPassword ? 'text' : 'password'}
+                        required
+                        value={resetModal.newPassword}
+                        onChange={(e) => setResetModal((prev) => ({ ...prev, newPassword: e.target.value }))}
+                        placeholder="Digite a nova senha"
+                        className="w-full rounded-xl border border-[#E6E2DA] bg-[#FCFBF8] px-3 py-2 pr-9 text-xs text-[#24232A] focus:border-[#563487] focus:outline-none"
+                      />
+                      <button
+                        type="button"
+                        onClick={() => setResetModal((prev) => ({ ...prev, showPassword: !prev.showPassword }))}
+                        className="absolute top-1/2 right-2.5 -translate-y-1/2 text-[#6E6B78] hover:text-[#24232A] p-0.5"
+                      >
+                        {resetModal.showPassword ? <EyeOff className="h-3.5 w-3.5" /> : <Eye className="h-3.5 w-3.5" />}
+                      </button>
+                    </div>
+                  </div>
+
+                  <div className="flex justify-end gap-2 pt-2">
+                    <button
+                      type="button"
+                      onClick={() => setResetModal({ open: false, user: null, newPassword: '', loading: false, error: '', success: '', showPassword: false })}
+                      className="rounded-xl border border-[#E6E2DA] px-4 py-2 text-xs font-semibold text-[#5A5863] hover:bg-[#F2EFE9]"
+                    >
+                      Cancelar
+                    </button>
+                    <button
+                      type="submit"
+                      disabled={resetModal.loading}
+                      className="rounded-xl bg-[#563487] px-4 py-2 text-xs font-bold text-white hover:bg-[#462970] disabled:opacity-60"
+                    >
+                      {resetModal.loading ? 'Salvando...' : 'Salvar Nova Senha'}
+                    </button>
+                  </div>
+                </form>
+              </div>
+            </div>
+          )}
+
+          {/* Modal: Novo Usuário */}
+          {createModal.open && (
+            <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/40 p-4 backdrop-blur-xs">
+              <div className="w-full max-w-lg rounded-2xl border border-[#E6E2DA] bg-white p-6 shadow-xl space-y-4">
+                <div className="flex items-center justify-between border-b border-[#E6E2DA] pb-3">
+                  <div className="flex items-center gap-2 text-[#563487]">
+                    <UserPlus className="h-5 w-5" />
+                    <h3 className="text-base font-extrabold text-[#24232A]">Novo Usuário / Acesso</h3>
+                  </div>
+                  <button
+                    type="button"
+                    onClick={() => setCreateModal((prev) => ({ ...prev, open: false }))}
+                    className="rounded-lg p-1 text-[#5A5863] hover:bg-[#F2EFE9]"
+                  >
+                    <X className="h-4 w-4" />
+                  </button>
+                </div>
+
+                {createModal.error && (
+                  <div className="rounded-xl border border-rose-200 bg-rose-50 p-2.5 text-xs font-semibold text-rose-800">
+                    {createModal.error}
+                  </div>
+                )}
+                {createModal.success && (
+                  <div className="rounded-xl border border-emerald-200 bg-emerald-50 p-2.5 text-xs font-semibold text-emerald-800">
+                    {createModal.success}
+                  </div>
+                )}
+
+                <form onSubmit={handleAdminCreateUser} className="space-y-3">
+                  <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
+                    <div>
+                      <label className="block text-[11px] font-bold text-[#5A5863] mb-1">Nome Completo</label>
+                      <input
+                        type="text"
+                        required
+                        value={createModal.name}
+                        onChange={(e) => setCreateModal((prev) => ({ ...prev, name: e.target.value }))}
+                        placeholder="Ex: Ana Ribeiro"
+                        className="w-full rounded-xl border border-[#E6E2DA] bg-[#FCFBF8] px-3 py-2 text-xs text-[#24232A] focus:border-[#563487] focus:outline-none"
+                      />
+                    </div>
+                    <div>
+                      <label className="block text-[11px] font-bold text-[#5A5863] mb-1">E-mail</label>
+                      <input
+                        type="email"
+                        required
+                        value={createModal.email}
+                        onChange={(e) => setCreateModal((prev) => ({ ...prev, email: e.target.value }))}
+                        placeholder="ana@exemplo.com"
+                        className="w-full rounded-xl border border-[#E6E2DA] bg-[#FCFBF8] px-3 py-2 text-xs text-[#24232A] focus:border-[#563487] focus:outline-none"
+                      />
+                    </div>
+                  </div>
+
+                  <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
+                    <div>
+                      <label className="block text-[11px] font-bold text-[#5A5863] mb-1">Perfil de Acesso (RBAC)</label>
+                      <select
+                        value={createModal.role}
+                        onChange={(e) => setCreateModal((prev) => ({ ...prev, role: e.target.value }))}
+                        className="w-full rounded-xl border border-[#E6E2DA] bg-[#FCFBF8] px-3 py-2 text-xs text-[#24232A] focus:border-[#563487] focus:outline-none"
+                      >
+                        <option value="admin">Administrador (Acesso Global)</option>
+                        <option value="operator">Operador (Bancada 3D & Kanban)</option>
+                        <option value="partner">Parceiro (Portal do Parceiro)</option>
+                        <option value="customer">Cliente (Área do Cliente)</option>
+                      </select>
+                    </div>
+                    <div>
+                      <label className="block text-[11px] font-bold text-[#5A5863] mb-1">Telefone / WhatsApp (Opcional)</label>
+                      <input
+                        type="text"
+                        value={createModal.phone}
+                        onChange={(e) => setCreateModal((prev) => ({ ...prev, phone: e.target.value }))}
+                        placeholder="(21) 99999-0000"
+                        className="w-full rounded-xl border border-[#E6E2DA] bg-[#FCFBF8] px-3 py-2 text-xs text-[#24232A] focus:border-[#563487] focus:outline-none"
+                      />
+                    </div>
+                  </div>
+
+                  <div>
+                    <label className="block text-[11px] font-bold text-[#5A5863] mb-1">Senha Inicial (min. 8 caracteres)</label>
+                    <div className="relative">
+                      <input
+                        type={createModal.showPassword ? 'text' : 'password'}
+                        required
+                        value={createModal.password}
+                        onChange={(e) => setCreateModal((prev) => ({ ...prev, password: e.target.value }))}
+                        placeholder="••••••••"
+                        className="w-full rounded-xl border border-[#E6E2DA] bg-[#FCFBF8] px-3 py-2 pr-9 text-xs text-[#24232A] focus:border-[#563487] focus:outline-none"
+                      />
+                      <button
+                        type="button"
+                        onClick={() => setCreateModal((prev) => ({ ...prev, showPassword: !prev.showPassword }))}
+                        className="absolute top-1/2 right-2.5 -translate-y-1/2 text-[#6E6B78] hover:text-[#24232A] p-0.5"
+                      >
+                        {createModal.showPassword ? <EyeOff className="h-3.5 w-3.5" /> : <Eye className="h-3.5 w-3.5" />}
+                      </button>
+                    </div>
+                  </div>
+
+                  <div className="flex justify-end gap-2 pt-3">
+                    <button
+                      type="button"
+                      onClick={() => setCreateModal((prev) => ({ ...prev, open: false }))}
+                      className="rounded-xl border border-[#E6E2DA] px-4 py-2 text-xs font-semibold text-[#5A5863] hover:bg-[#F2EFE9]"
+                    >
+                      Fechar
+                    </button>
+                    <button
+                      type="submit"
+                      disabled={createModal.loading}
+                      className="rounded-xl bg-[#563487] px-4 py-2 text-xs font-bold text-white hover:bg-[#462970] disabled:opacity-60"
+                    >
+                      {createModal.loading ? 'Cadastrando...' : 'Cadastrar Usuário'}
+                    </button>
+                  </div>
+                </form>
+              </div>
+            </div>
+          )}
+
+          {/* Modal: Excluir Usuário */}
+          {deleteModal.open && deleteModal.user && (
+            <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/40 p-4 backdrop-blur-xs">
+              <div className="w-full max-w-md rounded-2xl border border-rose-200 bg-white p-6 shadow-xl space-y-4">
+                <div className="flex items-center gap-2 text-rose-700">
+                  <Trash2 className="h-5 w-5" />
+                  <h3 className="text-base font-extrabold text-[#24232A]">Confirmar Exclusão de Acesso</h3>
+                </div>
+
+                <p className="text-xs text-[#5A5863]">
+                  Tem certeza que deseja excluir o acesso de <strong className="text-[#24232A]">{deleteModal.user.name}</strong> ({deleteModal.user.email})?
+                </p>
+
+                <div className="rounded-xl bg-amber-50 border border-amber-200 p-3 text-xs text-amber-900">
+                  Esta ação revoga imediatamente as sessões ativas deste usuário no sistema.
+                </div>
+
+                {deleteModal.error && (
+                  <div className="rounded-xl border border-rose-200 bg-rose-50 p-2.5 text-xs font-semibold text-rose-800">
+                    {deleteModal.error}
+                  </div>
+                )}
+
+                <div className="flex justify-end gap-2 pt-2">
+                  <button
+                    type="button"
+                    onClick={() => setDeleteModal({ open: false, user: null, loading: false, error: '' })}
+                    className="rounded-xl border border-[#E6E2DA] px-4 py-2 text-xs font-semibold text-[#5A5863] hover:bg-[#F2EFE9]"
+                  >
+                    Cancelar
+                  </button>
+                  <button
+                    type="button"
+                    onClick={handleAdminDeleteUser}
+                    disabled={deleteModal.loading}
+                    className="rounded-xl bg-rose-700 px-4 py-2 text-xs font-bold text-white hover:bg-rose-800 disabled:opacity-60"
+                  >
+                    {deleteModal.loading ? 'Excluindo...' : 'Excluir Definitivamente'}
+                  </button>
+                </div>
+              </div>
+            </div>
+          )}
         </section>
       )}
 

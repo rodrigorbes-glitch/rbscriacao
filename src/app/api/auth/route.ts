@@ -175,7 +175,204 @@ export async function POST(req: NextRequest) {
       });
     }
 
-    // 4. Login Action (Standard / Admin / Partner)
+    // 4. Admin Set/Reset User Password
+    if (body.action === 'admin_set_password') {
+      const token = req.cookies.get(SESSION_COOKIE_NAME)?.value;
+      const session = await validateSessionFromCookie(db, token);
+      if (!session || session.role !== 'admin') {
+        return NextResponse.json(
+          { error: 'Apenas administradores podem redefinir senhas de outros usuários.' },
+          { status: 403 }
+        );
+      }
+
+      const targetUserId = String(body.targetUserId || '').trim();
+      const newPassword = String(body.newPassword || '');
+
+      if (!targetUserId || !newPassword || newPassword.length < 8) {
+        return NextResponse.json(
+          { error: 'ID do usuário e nova senha (mínimo de 8 caracteres) são obrigatórios.' },
+          { status: 400 }
+        );
+      }
+
+      const target = await db.query<{ id: string; name: string; email: string }>(
+        'SELECT id, name, email FROM users WHERE id = $1 LIMIT 1',
+        [targetUserId]
+      );
+      if (target.length === 0) {
+        return NextResponse.json({ error: 'Usuário não encontrado.' }, { status: 404 });
+      }
+
+      const newHash = hashPassword(newPassword);
+      await db.query(
+        'UPDATE users SET password_hash = $1, updated_at = CURRENT_TIMESTAMP WHERE id = $2',
+        [newHash, targetUserId]
+      );
+
+      // Revoke any existing active sessions for this user so they must log in with the new password
+      await db.query('DELETE FROM sessions WHERE user_id = $1', [targetUserId]);
+
+      // Audit log
+      await db.query(
+        `INSERT INTO audit_logs (id, actor_user_id, actor_name, actor_role, action, entity_type, entity_id, after_json)
+         VALUES ($1, $2, $3, $4, 'admin_reset_password', 'users', $5, $6)`,
+        [
+          `aud-${Date.now()}`,
+          session.userId,
+          session.name,
+          session.role,
+          targetUserId,
+          JSON.stringify({ targetEmail: target[0].email, targetName: target[0].name })
+        ]
+      );
+
+      return NextResponse.json({
+        success: true,
+        message: `Senha de ${target[0].name} redefinida com sucesso!`,
+      });
+    }
+
+    // 5. Admin Create Team/Access User
+    if (body.action === 'admin_create_user') {
+      const token = req.cookies.get(SESSION_COOKIE_NAME)?.value;
+      const session = await validateSessionFromCookie(db, token);
+      if (!session || session.role !== 'admin') {
+        return NextResponse.json(
+          { error: 'Apenas administradores podem cadastrar novos acessos.' },
+          { status: 403 }
+        );
+      }
+
+      const name = String(body.name || '').trim();
+      const email = String(body.email || '').trim().toLowerCase();
+      const role = String(body.role || 'operator').trim();
+      const password = String(body.password || '');
+      const phone = body.phone ? String(body.phone).trim() : null;
+
+      if (!name || !email || !password || password.length < 8) {
+        return NextResponse.json(
+          { error: 'Nome, e-mail e senha inicial (mínimo de 8 caracteres) são obrigatórios.' },
+          { status: 400 }
+        );
+      }
+
+      if (!['admin', 'operator', 'partner', 'customer'].includes(role)) {
+        return NextResponse.json(
+          { error: 'Perfil de acesso inválido.' },
+          { status: 400 }
+        );
+      }
+
+      const existing = await db.query('SELECT id FROM users WHERE LOWER(email) = $1 LIMIT 1', [email]);
+      if (existing.length > 0) {
+        return NextResponse.json(
+          { error: 'Este e-mail já está cadastrado no sistema.' },
+          { status: 400 }
+        );
+      }
+
+      const newUserId = `usr-${Date.now()}`;
+      const passwordHashed = hashPassword(password);
+      await db.query(
+        `INSERT INTO users (id, name, email, password_hash, role, phone, is_active, email_verified)
+         VALUES ($1, $2, $3, $4, $5, $6, TRUE, TRUE)`,
+        [newUserId, name, email, passwordHashed, role, phone]
+      );
+
+      // Audit log
+      await db.query(
+        `INSERT INTO audit_logs (id, actor_user_id, actor_name, actor_role, action, entity_type, entity_id, after_json)
+         VALUES ($1, $2, $3, $4, 'admin_create_user', 'users', $5, $6)`,
+        [
+          `aud-${Date.now()}`,
+          session.userId,
+          session.name,
+          session.role,
+          newUserId,
+          JSON.stringify({ name, email, role })
+        ]
+      );
+
+      return NextResponse.json({
+        success: true,
+        message: `Usuário ${name} criado com sucesso!`,
+        user: { id: newUserId, name, email, role, phone, is_active: true }
+      });
+    }
+
+    // 6. Admin Delete User
+    if (body.action === 'admin_delete_user') {
+      const token = req.cookies.get(SESSION_COOKIE_NAME)?.value;
+      const session = await validateSessionFromCookie(db, token);
+      if (!session || session.role !== 'admin') {
+        return NextResponse.json(
+          { error: 'Apenas administradores podem excluir usuários.' },
+          { status: 403 }
+        );
+      }
+
+      const targetUserId = String(body.targetUserId || '').trim();
+      if (!targetUserId) {
+        return NextResponse.json({ error: 'ID do usuário não informado.' }, { status: 400 });
+      }
+
+      if (targetUserId === session.userId) {
+        return NextResponse.json(
+          { error: 'Você não pode excluir sua própria conta conectada.' },
+          { status: 400 }
+        );
+      }
+
+      const target = await db.query<{ id: string; name: string; email: string; role: string }>(
+        'SELECT id, name, email, role FROM users WHERE id = $1 LIMIT 1',
+        [targetUserId]
+      );
+      if (target.length === 0) {
+        return NextResponse.json({ error: 'Usuário não encontrado.' }, { status: 404 });
+      }
+
+      // If target is admin, make sure there is at least one other active admin
+      if (target[0].role === 'admin') {
+        const adminCount = await db.query<{ count: string | number }>(
+          "SELECT COUNT(*) as count FROM users WHERE role = 'admin' AND is_active = TRUE AND id != $1",
+          [targetUserId]
+        );
+        if (Number(adminCount[0]?.count || 0) < 1) {
+          return NextResponse.json(
+            { error: 'Não é possível excluir o último administrador do sistema.' },
+            { status: 400 }
+          );
+        }
+      }
+
+      // Revoke sessions
+      await db.query('DELETE FROM sessions WHERE user_id = $1', [targetUserId]);
+
+      // Delete user
+      await db.query('DELETE FROM users WHERE id = $1', [targetUserId]);
+
+      // Audit log
+      await db.query(
+        `INSERT INTO audit_logs (id, actor_user_id, actor_name, actor_role, action, entity_type, entity_id, before_json)
+         VALUES ($1, $2, $3, $4, 'admin_delete_user', 'users', $5, $6)`,
+        [
+          `aud-${Date.now()}`,
+          session.userId,
+          session.name,
+          session.role,
+          targetUserId,
+          JSON.stringify({ name: target[0].name, email: target[0].email, role: target[0].role })
+        ]
+      );
+
+      return NextResponse.json({
+        success: true,
+        message: `Usuário ${target[0].name} (${target[0].email}) foi excluído com sucesso.`
+      });
+    }
+
+    // 7. Login Action (Standard / Admin / Partner)
     const email = String(body.email || '').trim().toLowerCase();
     const password = String(body.password || '');
 

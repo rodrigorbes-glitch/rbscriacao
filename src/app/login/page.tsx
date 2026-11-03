@@ -3,7 +3,7 @@
 import React, { useState } from 'react';
 import Link from 'next/link';
 import { useRouter } from 'next/navigation';
-import { Lock, Mail } from 'lucide-react';
+import { Lock, Mail, Eye, EyeOff } from 'lucide-react';
 import { StoreHeader } from '@/components/StoreHeader';
 import { StoreFooter } from '@/components/StoreFooter';
 
@@ -11,6 +11,7 @@ export default function LoginPage() {
   const router = useRouter();
   const [email, setEmail] = useState('');
   const [password, setPassword] = useState('');
+  const [showPassword, setShowPassword] = useState(false);
   const [error, setError] = useState('');
   const [loading, setLoading] = useState(false);
 
@@ -91,12 +92,20 @@ export default function LoginPage() {
               <div className="relative mt-1.5">
                 <Lock className="absolute top-1/2 left-3.5 h-4 w-4 -translate-y-1/2 text-[#6E6B78]" />
                 <input
-                  type="password"
+                  type={showPassword ? 'text' : 'password'}
                   required
                   value={password}
                   onChange={(e) => setPassword(e.target.value)}
-                  className="w-full rounded-xl border border-[#E6E2DA] bg-[#FCFBF8] py-2.5 pr-3 pl-10 text-sm text-[#24232A] focus:border-[#563487] focus:outline-none"
+                  className="w-full rounded-xl border border-[#E6E2DA] bg-[#FCFBF8] py-2.5 pr-10 pl-10 text-sm text-[#24232A] focus:border-[#563487] focus:outline-none"
                 />
+                <button
+                  type="button"
+                  onClick={() => setShowPassword((prev) => !prev)}
+                  aria-label={showPassword ? 'Ocultar senha' : 'Exibir senha'}
+                  className="absolute top-1/2 right-3 -translate-y-1/2 p-1 text-[#6E6B78] hover:text-[#24232A] transition cursor-pointer"
+                >
+                  {showPassword ? <EyeOff className="h-4 w-4" /> : <Eye className="h-4 w-4" />}
+                </button>
               </div>
             </div>
 

@@ -30,6 +30,46 @@ export function StoreHeader() {
   const [searchTerm, setSearchTerm] = useState('');
   const [cartCount, setCartCount] = useState<number>(0);
   const [wishCount, setWishCount] = useState<number>(0);
+  const [currentUser, setCurrentUser] = useState<{
+    id: string;
+    name: string;
+    email: string;
+    role: string;
+  } | null>(null);
+
+  useEffect(() => {
+    const checkAuth = async () => {
+      try {
+        const res = await fetch('/api/auth');
+        if (res.ok) {
+          const data = await res.json();
+          if (data.authenticated && data.user) {
+            setCurrentUser(data.user);
+            return;
+          }
+        }
+        setCurrentUser(null);
+      } catch {
+        setCurrentUser(null);
+      }
+    };
+    checkAuth();
+  }, [pathname]);
+
+  const handleLogout = async () => {
+    try {
+      await fetch('/api/auth', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ action: 'logout' }),
+      });
+      window.localStorage.removeItem('rbs_auth_user');
+      setCurrentUser(null);
+      window.location.href = '/';
+    } catch {
+      window.location.href = '/';
+    }
+  };
 
   useEffect(() => {
     const loadCounts = async () => {
@@ -159,12 +199,45 @@ export function StoreHeader() {
             )}
           </Link>
 
+          {/* Discreet User State & Logout */}
+          {currentUser ? (
+            <div className="hidden sm:flex items-center gap-2 rounded-xl border border-[#E6E2DA] bg-white px-3 py-1.5 text-xs text-[#24232A]">
+              <span className="h-1.5 w-1.5 rounded-full bg-emerald-500 animate-pulse" />
+              <Link
+                href={currentUser.role === 'admin' || currentUser.role === 'operator' ? '/admin' : '/minha-conta'}
+                className="max-w-[130px] truncate font-medium text-[#24232A] hover:text-[#563487] transition"
+                title={`Conectado como: ${currentUser.email}`}
+              >
+                {currentUser.name.split(' ')[0]}
+              </Link>
+              <span className="text-[#D6D2CA]">|</span>
+              <button
+                type="button"
+                onClick={handleLogout}
+                className="text-[11px] font-semibold text-[#5A5863] hover:text-rose-700 transition cursor-pointer"
+                title="Sair da conta"
+              >
+                Sair
+              </button>
+            </div>
+          ) : (
+            <Link
+              href="/login"
+              className="hidden sm:inline-flex items-center rounded-xl border border-[#E6E2DA] bg-white px-3 py-2 text-xs font-semibold text-[#5A5863] hover:border-[#563487] hover:text-[#563487] transition"
+            >
+              Entrar
+            </Link>
+          )}
+
           <Link
-            href="/minha-conta"
+            href={currentUser ? '/minha-conta' : '/login'}
             aria-label="Minha conta e pedidos"
-            className="inline-flex h-11 w-11 items-center justify-center rounded-xl border border-[#E6E2DA] bg-white text-[#24232A] transition hover:border-[#563487]/40 hover:bg-[#F3EFFA] hover:text-[#563487]"
+            className="relative inline-flex h-11 w-11 items-center justify-center rounded-xl border border-[#E6E2DA] bg-white text-[#24232A] transition hover:border-[#563487]/40 hover:bg-[#F3EFFA] hover:text-[#563487]"
           >
             <User className="h-4 w-4" />
+            {currentUser && (
+              <span className="absolute top-2 right-2 h-2 w-2 rounded-full bg-emerald-500 ring-2 ring-white" />
+            )}
           </Link>
 
           <Link
@@ -207,6 +280,34 @@ export function StoreHeader() {
       {/* Mobile Navigation Drawer */}
       {mobileOpen && (
         <div className="border-t border-[#E6E2DA] bg-[#FCFBF8] px-4 py-4 lg:hidden">
+          {currentUser ? (
+            <div className="mb-4 flex items-center justify-between rounded-xl border border-[#E6E2DA] bg-white p-3 text-xs">
+              <div className="flex items-center gap-2">
+                <span className="h-2 w-2 rounded-full bg-emerald-500" />
+                <div>
+                  <span className="font-bold text-[#24232A] block">{currentUser.name}</span>
+                  <span className="text-[11px] text-[#5A5863] block font-mono">{currentUser.email}</span>
+                </div>
+              </div>
+              <button
+                type="button"
+                onClick={handleLogout}
+                className="rounded-lg border border-rose-200 bg-rose-50 px-2.5 py-1 text-xs font-semibold text-rose-700 hover:bg-rose-100 transition cursor-pointer"
+              >
+                Sair
+              </button>
+            </div>
+          ) : (
+            <Link
+              href="/login"
+              onClick={() => setMobileOpen(false)}
+              className="mb-4 flex items-center justify-center gap-2 rounded-xl bg-[#563487] py-2.5 text-xs font-bold text-white transition hover:bg-[#462970]"
+            >
+              <User className="h-4 w-4" />
+              <span>Entrar na Minha Conta</span>
+            </Link>
+          )}
+
           <form onSubmit={handleSearch} className="mb-4 flex gap-2">
             <input
               type="search"
