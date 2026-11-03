@@ -13,18 +13,68 @@ import {
   ChevronDown,
   ChevronUp,
   Lock,
+  Phone,
+  Mail,
+  Globe,
+  Camera as Instagram,
 } from 'lucide-react';
 import { formatDateTimeBR } from '@/lib/format';
+
+function FacebookIcon({ className = 'h-4 w-4' }: { className?: string }) {
+  return (
+    <svg className={className} viewBox="0 0 24 24" fill="currentColor">
+      <path d="M24 12.073c0-6.627-5.373-12-12-12s-12 5.373-12 12c0 5.99 4.388 10.954 10.125 11.854v-8.385H7.078v-3.47h3.047V9.43c0-3.007 1.792-4.669 4.533-4.669 1.312 0 2.686.235 2.686.235v2.953H15.83c-1.491 0-1.956.925-1.956 1.874v2.25h3.328l-.532 3.47h-2.796v8.385C19.612 23.027 24 18.062 24 12.073z"/>
+    </svg>
+  );
+}
 
 interface AdminSettingsClientProps {
   team: any[];
   jobs: any[];
   audit: any[];
+  initialBrandSettings?: any;
 }
 
-export function AdminSettingsClient({ team, jobs, audit }: AdminSettingsClientProps) {
-  const [activeTab, setActiveTab] = useState<'connections' | 'team' | 'activities' | 'diagnostics'>('connections');
+export function AdminSettingsClient({ team, jobs, audit, initialBrandSettings }: AdminSettingsClientProps) {
+  const [activeTab, setActiveTab] = useState<'store' | 'connections' | 'team' | 'activities' | 'diagnostics'>('store');
   const [expandedDetails, setExpandedDetails] = useState<Record<string, boolean>>({});
+
+  // Store Brand & Social contacts state
+  const [brandSettings, setBrandSettings] = useState({
+    whatsapp: initialBrandSettings?.whatsapp || '(21) 99888-7766',
+    phone: initialBrandSettings?.phone || '(21) 99888-7766',
+    email: initialBrandSettings?.email || 'contato@rbscriacao.com',
+    instagram: initialBrandSettings?.instagram || '@rbscriacao',
+    instagramUrl: initialBrandSettings?.instagramUrl || 'https://instagram.com/rbscriacao',
+    facebook: initialBrandSettings?.facebook || '@rbscriacao',
+    facebookUrl: initialBrandSettings?.facebookUrl || 'https://facebook.com/rbscriacao',
+    shippingText: initialBrandSettings?.shippingText || 'Envio para todo o Brasil',
+  });
+  const [brandLoading, setBrandLoading] = useState(false);
+  const [brandMsg, setBrandMsg] = useState<{ type: 'success' | 'error'; text: string } | null>(null);
+
+  async function handleSaveBrand(e: React.FormEvent) {
+    e.preventDefault();
+    setBrandMsg(null);
+    setBrandLoading(true);
+    try {
+      const res = await fetch('/api/settings', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify(brandSettings),
+      });
+      const data = await res.json();
+      if (!res.ok) {
+        setBrandMsg({ type: 'error', text: data.error || 'Erro ao salvar configurações.' });
+      } else {
+        setBrandMsg({ type: 'success', text: 'Canais de contato e redes sociais salvos com sucesso!' });
+      }
+    } catch {
+      setBrandMsg({ type: 'error', text: 'Erro de conexão ao salvar configurações.' });
+    } finally {
+      setBrandLoading(false);
+    }
+  }
 
   // Password change state
   const [currentPass, setCurrentPass] = useState('');
@@ -154,8 +204,19 @@ export function AdminSettingsClient({ team, jobs, audit }: AdminSettingsClientPr
 
   return (
     <div className="space-y-6">
-      {/* 4 Tabs: Conexões, Equipe e acessos, Atividades, Diagnóstico técnico */}
+      {/* 5 Tabs: Contatos e Redes, Conexões, Equipe e acessos, Atividades, Diagnóstico técnico */}
       <div className="flex flex-wrap gap-2 border-b border-[#E6E2DA] pb-3">
+        <button
+          type="button"
+          onClick={() => setActiveTab('store')}
+          className={`rounded-xl px-4 py-2 text-xs font-bold transition cursor-pointer ${
+            activeTab === 'store'
+              ? 'bg-[#563487] text-white shadow-xs'
+              : 'bg-white text-[#5A5863] border border-[#E6E2DA] hover:bg-[#F2EFE9]'
+          }`}
+        >
+          1. Contatos & Redes Sociais
+        </button>
         <button
           type="button"
           onClick={() => setActiveTab('connections')}
@@ -165,7 +226,7 @@ export function AdminSettingsClient({ team, jobs, audit }: AdminSettingsClientPr
               : 'bg-white text-[#5A5863] border border-[#E6E2DA] hover:bg-[#F2EFE9]'
           }`}
         >
-          1. Conexões de Serviços
+          2. Conexões de Serviços
         </button>
         <button
           type="button"
@@ -176,7 +237,7 @@ export function AdminSettingsClient({ team, jobs, audit }: AdminSettingsClientPr
               : 'bg-white text-[#5A5863] border border-[#E6E2DA] hover:bg-[#F2EFE9]'
           }`}
         >
-          2. Equipe & Acessos
+          3. Equipe & Acessos
         </button>
         <button
           type="button"
@@ -187,7 +248,7 @@ export function AdminSettingsClient({ team, jobs, audit }: AdminSettingsClientPr
               : 'bg-white text-[#5A5863] border border-[#E6E2DA] hover:bg-[#F2EFE9]'
           }`}
         >
-          3. Atividades & Auditoria
+          4. Atividades & Auditoria
         </button>
         <button
           type="button"
@@ -198,11 +259,155 @@ export function AdminSettingsClient({ team, jobs, audit }: AdminSettingsClientPr
               : 'bg-white text-[#5A5863] border border-[#E6E2DA] hover:bg-[#F2EFE9]'
           }`}
         >
-          4. Diagnóstico Técnico
+          5. Diagnóstico Técnico
         </button>
       </div>
 
-      {/* Tab 1: Conexões */}
+      {/* Tab 1: Loja, Contatos & Redes Sociais */}
+      {activeTab === 'store' && (
+        <section className="rounded-3xl border border-[#E6E2DA] bg-white p-6 space-y-6">
+          <div className="border-b border-[#E6E2DA] pb-3">
+            <h2 className="text-base font-extrabold text-[#24232A]">Canais de Contato e Redes Sociais</h2>
+            <p className="text-xs text-[#5A5863]">
+              Configure o número de WhatsApp, telefone, e-mail de atendimento e os links das redes sociais que são exibidos publicamente no rodapé e nas páginas da loja.
+            </p>
+          </div>
+
+          {brandMsg && (
+            <div
+              className={`rounded-xl p-3 text-xs font-semibold ${
+                brandMsg.type === 'success'
+                  ? 'border border-emerald-300 bg-emerald-50 text-emerald-800'
+                  : 'border border-rose-300 bg-rose-50 text-rose-900'
+              }`}
+            >
+              {brandMsg.text}
+            </div>
+          )}
+
+          <form onSubmit={handleSaveBrand} className="space-y-4">
+            <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+              <div>
+                <label className="block text-xs font-bold text-[#24232A] mb-1">
+                  WhatsApp de Atendimento
+                </label>
+                <div className="relative">
+                  <Phone className="absolute left-3.5 top-1/2 -translate-y-1/2 h-4 w-4 text-[#563487]" />
+                  <input
+                    type="text"
+                    required
+                    value={brandSettings.whatsapp}
+                    onChange={(e) => setBrandSettings({ ...brandSettings, whatsapp: e.target.value })}
+                    placeholder="(21) 99888-7766"
+                    className="w-full rounded-xl border border-[#E6E2DA] bg-[#FCFBF8] py-2.5 pl-10 pr-3 text-xs text-[#24232A] focus:border-[#563487] focus:outline-none"
+                  />
+                </div>
+                <span className="text-[10px] text-[#5A5863] mt-1 block">
+                  Exibido com link direto para conversa no WhatsApp.
+                </span>
+              </div>
+
+              <div>
+                <label className="block text-xs font-bold text-[#24232A] mb-1">
+                  Telefone Fixo / Alternativo (Opcional)
+                </label>
+                <div className="relative">
+                  <Phone className="absolute left-3.5 top-1/2 -translate-y-1/2 h-4 w-4 text-[#6E6B78]" />
+                  <input
+                    type="text"
+                    value={brandSettings.phone}
+                    onChange={(e) => setBrandSettings({ ...brandSettings, phone: e.target.value })}
+                    placeholder="(21) 3333-4444"
+                    className="w-full rounded-xl border border-[#E6E2DA] bg-[#FCFBF8] py-2.5 pl-10 pr-3 text-xs text-[#24232A] focus:border-[#563487] focus:outline-none"
+                  />
+                </div>
+              </div>
+
+              <div>
+                <label className="block text-xs font-bold text-[#24232A] mb-1">
+                  E-mail Oficial de Atendimento
+                </label>
+                <div className="relative">
+                  <Mail className="absolute left-3.5 top-1/2 -translate-y-1/2 h-4 w-4 text-[#563487]" />
+                  <input
+                    type="email"
+                    required
+                    value={brandSettings.email}
+                    onChange={(e) => setBrandSettings({ ...brandSettings, email: e.target.value })}
+                    placeholder="contato@rbscriacao.com"
+                    className="w-full rounded-xl border border-[#E6E2DA] bg-[#FCFBF8] py-2.5 pl-10 pr-3 text-xs text-[#24232A] focus:border-[#563487] focus:outline-none"
+                  />
+                </div>
+              </div>
+
+              <div>
+                <label className="block text-xs font-bold text-[#24232A] mb-1">
+                  Texto de Envio / Abrangência
+                </label>
+                <div className="relative">
+                  <Globe className="absolute left-3.5 top-1/2 -translate-y-1/2 h-4 w-4 text-[#563487]" />
+                  <input
+                    type="text"
+                    value={brandSettings.shippingText}
+                    onChange={(e) => setBrandSettings({ ...brandSettings, shippingText: e.target.value })}
+                    placeholder="Envio para todo o Brasil"
+                    className="w-full rounded-xl border border-[#E6E2DA] bg-[#FCFBF8] py-2.5 pl-10 pr-3 text-xs text-[#24232A] focus:border-[#563487] focus:outline-none"
+                  />
+                </div>
+                <span className="text-[10px] text-[#5A5863] mt-1 block">
+                  Exibido no rodapé da loja.
+                </span>
+              </div>
+
+              <div>
+                <label className="block text-xs font-bold text-[#24232A] mb-1">
+                  Link da Página / Perfil no Instagram
+                </label>
+                <div className="relative">
+                  <Instagram className="absolute left-3.5 top-1/2 -translate-y-1/2 h-4 w-4 text-[#563487]" />
+                  <input
+                    type="text"
+                    value={brandSettings.instagramUrl}
+                    onChange={(e) => setBrandSettings({ ...brandSettings, instagramUrl: e.target.value })}
+                    placeholder="https://instagram.com/rbscriacao"
+                    className="w-full rounded-xl border border-[#E6E2DA] bg-[#FCFBF8] py-2.5 pl-10 pr-3 text-xs text-[#24232A] focus:border-[#563487] focus:outline-none"
+                  />
+                </div>
+              </div>
+
+              <div>
+                <label className="block text-xs font-bold text-[#24232A] mb-1">
+                  Link da Página no Facebook
+                </label>
+                <div className="relative">
+                  <div className="absolute left-3.5 top-1/2 -translate-y-1/2 text-[#563487]">
+                    <FacebookIcon className="h-4 w-4" />
+                  </div>
+                  <input
+                    type="text"
+                    value={brandSettings.facebookUrl}
+                    onChange={(e) => setBrandSettings({ ...brandSettings, facebookUrl: e.target.value })}
+                    placeholder="https://facebook.com/rbscriacao"
+                    className="w-full rounded-xl border border-[#E6E2DA] bg-[#FCFBF8] py-2.5 pl-10 pr-3 text-xs text-[#24232A] focus:border-[#563487] focus:outline-none"
+                  />
+                </div>
+              </div>
+            </div>
+
+            <div className="flex justify-end pt-3 border-t border-[#E6E2DA]">
+              <button
+                type="submit"
+                disabled={brandLoading}
+                className="rounded-xl bg-[#563487] px-5 py-2.5 text-xs font-bold text-white transition hover:bg-[#462970] disabled:opacity-60 cursor-pointer"
+              >
+                {brandLoading ? 'Salvando...' : 'Salvar Configurações de Contato & Redes'}
+              </button>
+            </div>
+          </form>
+        </section>
+      )}
+
+      {/* Tab 2: Conexões */}
       {activeTab === 'connections' && (
         <section className="space-y-4">
           <div className="rounded-2xl border border-[#E6E2DA] bg-white p-4">

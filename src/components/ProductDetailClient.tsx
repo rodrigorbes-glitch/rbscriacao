@@ -123,7 +123,7 @@ export function ProductDetailClient({
         totalDays: mfg + (isRj ? 3 : 5),
       },
       {
-        name: 'Retirada no Estúdio RBS (Duque de Caxias/RJ)',
+        name: 'Retirada no Estúdio RBS (Sob agendamento)',
         priceCents: 0,
         carrierDays: 0,
         mfgDays: mfg,

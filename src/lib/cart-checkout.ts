@@ -91,7 +91,7 @@ export function calculateShippingOptions(
       },
       {
         id: 'retirada',
-        name: 'Retirada no Estúdio RBS (Duque de Caxias/RJ)',
+        name: 'Retirada no Estúdio RBS (Sob agendamento)',
         carrier: 'Estúdio RBS Criação',
         price_cents: 0,
         carrier_days: 0,
@@ -148,7 +148,7 @@ export function calculateShippingOptions(
     },
     {
       id: 'retirada',
-      name: 'Retirada no Estúdio RBS (Duque de Caxias/RJ)',
+      name: 'Retirada no Estúdio RBS (Sob agendamento)',
       carrier: 'Estúdio RBS Criação',
       price_cents: 0,
       carrier_days: 0,
