@@ -12,6 +12,7 @@ import {
   Shield,
   ChevronDown,
   ChevronUp,
+  Lock,
 } from 'lucide-react';
 import { formatDateTimeBR } from '@/lib/format';
 
@@ -24,6 +25,51 @@ interface AdminSettingsClientProps {
 export function AdminSettingsClient({ team, jobs, audit }: AdminSettingsClientProps) {
   const [activeTab, setActiveTab] = useState<'connections' | 'team' | 'activities' | 'diagnostics'>('connections');
   const [expandedDetails, setExpandedDetails] = useState<Record<string, boolean>>({});
+
+  // Password change state
+  const [currentPass, setCurrentPass] = useState('');
+  const [newPass, setNewPass] = useState('');
+  const [confirmPass, setConfirmPass] = useState('');
+  const [passLoading, setPassLoading] = useState(false);
+  const [passMsg, setPassMsg] = useState<{ type: 'success' | 'error'; text: string } | null>(null);
+
+  async function handleChangePassword(e: React.FormEvent) {
+    e.preventDefault();
+    setPassMsg(null);
+    if (newPass.length < 8) {
+      setPassMsg({ type: 'error', text: 'A nova senha deve ter no mínimo 8 caracteres.' });
+      return;
+    }
+    if (newPass !== confirmPass) {
+      setPassMsg({ type: 'error', text: 'A confirmação de senha não coincide com a nova senha.' });
+      return;
+    }
+    setPassLoading(true);
+    try {
+      const res = await fetch('/api/auth', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({
+          action: 'change_password',
+          currentPassword: currentPass,
+          newPassword: newPass,
+        }),
+      });
+      const data = await res.json();
+      if (!res.ok) {
+        setPassMsg({ type: 'error', text: data.error || 'Erro ao alterar senha.' });
+      } else {
+        setPassMsg({ type: 'success', text: 'Senha alterada com sucesso!' });
+        setCurrentPass('');
+        setNewPass('');
+        setConfirmPass('');
+      }
+    } catch {
+      setPassMsg({ type: 'error', text: 'Erro de conexão ao alterar senha.' });
+    } finally {
+      setPassLoading(false);
+    }
+  }
 
   function toggleDetail(key: string) {
     setExpandedDetails((prev) => ({ ...prev, [key]: !prev[key] }));
@@ -282,6 +328,73 @@ export function AdminSettingsClient({ team, jobs, audit }: AdminSettingsClientPr
                 ))}
               </tbody>
             </table>
+          </div>
+
+          {/* Alterar Senha da Conta Conectada */}
+          <div className="mt-6 pt-5 border-t border-[#E6E2DA]">
+            <div className="flex items-center gap-2 mb-3">
+              <Lock className="w-4 h-4 text-[#563487]" />
+              <h3 className="text-sm font-bold text-[#24232A]">Alterar Senha de Acesso</h3>
+            </div>
+            <p className="text-xs text-[#5A5863] mb-4">
+              Atualize a senha de login da conta atualmente conectada. A nova senha deve ter no mínimo 8 caracteres.
+            </p>
+
+            {passMsg && (
+              <div
+                className={`mb-4 rounded-xl p-3 text-xs font-semibold ${
+                  passMsg.type === 'success'
+                    ? 'border border-emerald-300 bg-emerald-50 text-emerald-800'
+                    : 'border border-rose-300 bg-rose-50 text-rose-900'
+                }`}
+              >
+                {passMsg.text}
+              </div>
+            )}
+
+            <form onSubmit={handleChangePassword} className="grid grid-cols-1 sm:grid-cols-3 gap-3">
+              <div>
+                <label className="block text-[11px] font-bold text-[#5A5863] mb-1">Senha Atual</label>
+                <input
+                  type="password"
+                  value={currentPass}
+                  onChange={(e) => setCurrentPass(e.target.value)}
+                  placeholder="••••••••"
+                  className="w-full rounded-xl border border-[#E6E2DA] bg-[#FCFBF8] px-3 py-2 text-xs text-[#24232A] focus:border-[#563487] focus:outline-none"
+                />
+              </div>
+              <div>
+                <label className="block text-[11px] font-bold text-[#5A5863] mb-1">Nova Senha (min. 8 caracteres)</label>
+                <input
+                  type="password"
+                  required
+                  value={newPass}
+                  onChange={(e) => setNewPass(e.target.value)}
+                  placeholder="••••••••"
+                  className="w-full rounded-xl border border-[#E6E2DA] bg-[#FCFBF8] px-3 py-2 text-xs text-[#24232A] focus:border-[#563487] focus:outline-none"
+                />
+              </div>
+              <div>
+                <label className="block text-[11px] font-bold text-[#5A5863] mb-1">Confirmar Nova Senha</label>
+                <input
+                  type="password"
+                  required
+                  value={confirmPass}
+                  onChange={(e) => setConfirmPass(e.target.value)}
+                  placeholder="••••••••"
+                  className="w-full rounded-xl border border-[#E6E2DA] bg-[#FCFBF8] px-3 py-2 text-xs text-[#24232A] focus:border-[#563487] focus:outline-none"
+                />
+              </div>
+              <div className="sm:col-span-3 flex justify-end">
+                <button
+                  type="submit"
+                  disabled={passLoading}
+                  className="rounded-xl bg-[#563487] px-4 py-2 text-xs font-bold text-white transition hover:bg-[#462970] disabled:opacity-60 cursor-pointer"
+                >
+                  {passLoading ? 'Salvando...' : 'Salvar Nova Senha'}
+                </button>
+              </div>
+            </form>
           </div>
         </section>
       )}

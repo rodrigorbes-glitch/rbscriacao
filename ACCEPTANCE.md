@@ -47,9 +47,11 @@ Todos os 4 cenários críticos passaram com 100% de precisão matemática e tran
 
 ### 2.2 Credenciais de Homologação (Acesso em `/login`)
 
-| Perfil RBAC | E-mail | Senha de Homologação | Escopo de Acesso |
+| Perfil RBAC | E-mail | Senha Padrão de Homologação | Escopo de Acesso |
 |---|---|---|---|
-| **Administrador Master** | `admin@rbscriacao.com` | `RbsAdmin2026!` | Acesso irrestrito a todos os 15 módulos administrativos |
+| **Administrador Master (Rodrigo)** | `rodrigorbes@gmail.com` | `Admin@RBS2026!` | Acesso irrestrito a todos os módulos administrativos |
+| **Administrador Master (Rachel)** | `dra.rachelbeatriz@gmail.com` | `Admin@RBS2026!` | Acesso irrestrito a todos os módulos administrativos |
+| **Administrador Master (Sistema)** | `admin@rbscriacao.com` | `Admin@RBS2026!` | Acesso irrestrito a todos os módulos administrativos |
 | **Operações & Fábrica 3D** | `operacao@rbscriacao.com` | `RbsOperacao2026!` | Kanban 3D, Estoque (`kg -> g`), Pedidos, Orçamentos e Catálogo |
 | **Financeiro & DRE** | `financeiro@rbscriacao.com` | `RbsFinanceiro2026!` | Contas a Pagar/Receber, Conciliação MDR, DRE e Precificador |
 | **Marketing & Social** | `marketing@rbscriacao.com` | `RbsMarketing2026!` | Inteligência Comercial, Promoções, Banners e Instagram `@rbscriacao` |

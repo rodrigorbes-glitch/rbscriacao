@@ -79,8 +79,8 @@ export default async function HomePage() {
         {/* 1. Primeira Dobra (Hero Editorial: ~40% Texto / ~60% Fotografia Real) */}
         <section className="border-b border-[#E6E2DA] bg-[#FCFBF8] py-8 sm:py-12 lg:py-16">
           <div className="mx-auto grid max-w-7xl grid-cols-1 items-center gap-8 px-4 sm:px-6 lg:grid-cols-12 lg:gap-12 lg:px-8">
-            {/* Left Column (~40% / 5 cols on desktop) */}
-            <div className="space-y-5 lg:col-span-5">
+            {/* Left Column (~40% / 5 cols on desktop, 2nd on mobile) */}
+            <div className="order-2 space-y-5 lg:order-1 lg:col-span-5">
               <p className="text-xs font-semibold tracking-widest text-[#563487] uppercase">
                 Vaso Premium Furta-Cor • Edição Autoral
               </p>
@@ -120,8 +120,8 @@ export default async function HomePage() {
               </div>
             </div>
 
-            {/* Right Column (~60% / 7 cols on desktop): Wide Real Photograph without inner card, HUD or overlay */}
-            <div className="lg:col-span-7">
+            {/* Right Column (~60% / 7 cols on desktop, 1st on mobile): Wide Real Photograph without inner card, HUD or overlay */}
+            <div className="order-1 lg:order-2 lg:col-span-7">
               <Link
                 href={heroBanner.cta_href || '/produto/vaso-premium-furta-cor'}
                 aria-label="Ver página do Vaso Premium Furta-Cor"

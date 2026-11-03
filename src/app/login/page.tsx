@@ -118,10 +118,18 @@ export default function LoginPage() {
               <div className="mt-2 grid grid-cols-2 gap-2">
                 <button
                   type="button"
+                  onClick={() => quickFill('rodrigorbes@gmail.com', 'Admin@RBS2026!')}
+                  className="rounded-lg border border-[#E6E2DA] bg-white p-2 text-left transition hover:border-[#563487]"
+                >
+                  <strong className="block text-[#24232A]">Rodrigo (Admin)</strong>
+                  <span className="text-[10px] text-[#5A5863]">rodrigorbes@gmail.com</span>
+                </button>
+                <button
+                  type="button"
                   onClick={() => quickFill('admin@rbscriacao.com', 'Admin@RBS2026!')}
                   className="rounded-lg border border-[#E6E2DA] bg-white p-2 text-left transition hover:border-[#563487]"
                 >
-                  <strong className="block text-[#24232A]">Administrador</strong>
+                  <strong className="block text-[#24232A]">Admin Master</strong>
                   <span className="text-[10px] text-[#5A5863]">admin@rbscriacao.com</span>
                 </button>
                 <button

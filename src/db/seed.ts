@@ -10,7 +10,9 @@ export async function seedDatabase(db: DatabaseAdapter): Promise<void> {
   // 1. Users (RBAC: admin, operator, partner, customer)
   // Strict OWASP scrypt parameters (N=65536, r=8, p=1). Zero plain-text rbs_hash credentials in seed!
   const users = [
-    ['usr-admin', 'Rodrigo Souza (Admin RBS)', 'admin@rbscriacao.com', hashPassword('Admin@RBS2026!'), 'admin', '(21) 99888-7766', '12.345.678/0001-90', true, true],
+    ['usr-admin-rodrigo', 'Rodrigo Souza (Admin RBS)', 'rodrigorbes@gmail.com', hashPassword('Admin@RBS2026!'), 'admin', '(21) 99888-7766', '12.345.678/0001-90', true, true],
+    ['usr-admin-rachel', 'Dra. Rachel Beatriz (Admin RBS)', 'dra.rachelbeatriz@gmail.com', hashPassword('Admin@RBS2026!'), 'admin', '(21) 99888-7766', '12.345.678/0001-90', true, true],
+    ['usr-admin', 'Administrador Master', 'admin@rbscriacao.com', hashPassword('Admin@RBS2026!'), 'admin', '(21) 99888-7766', '12.345.678/0001-90', true, true],
     ['usr-operator', 'Lucas Bancada 3D (Operador)', 'operacao@rbscriacao.com', hashPassword('Operador@RBS2026!'), 'operator', '(21) 99777-6655', '123.456.789-01', true, true],
     ['usr-partner', 'Camila Design & Decor (Parceira)', 'parceiro@rbscriacao.com', hashPassword('Parceiro@RBS2026!'), 'partner', '(21) 99666-5544', '23.456.789/0001-12', true, true],
     ['usr-customer', 'Mariana Costa', 'cliente@rbscriacao.com', hashPassword('Cliente@RBS2026!'), 'customer', '(11) 98765-4321', '345.678.901-23', true, true],
@@ -19,7 +21,10 @@ export async function seedDatabase(db: DatabaseAdapter): Promise<void> {
   for (const u of users) {
     await db.query(
       `INSERT INTO users (id, name, email, password_hash, role, phone, document_cpf_cnpj, is_active, email_verified)
-       VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9) ON CONFLICT (id) DO NOTHING`,
+       VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9)
+       ON CONFLICT (email) DO UPDATE SET
+         role = EXCLUDED.role,
+         is_active = TRUE`,
       u
     );
   }

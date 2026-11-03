@@ -126,7 +126,56 @@ export async function POST(req: NextRequest) {
       return response;
     }
 
-    // 3. Login Action (Standard / Admin / Partner)
+    // 3. Change Password Action (Authenticated User)
+    if (body.action === 'change_password') {
+      const token = req.cookies.get(SESSION_COOKIE_NAME)?.value;
+      const session = await validateSessionFromCookie(db, token);
+      if (!session) {
+        return NextResponse.json(
+          { error: 'Você precisa estar autenticado para alterar sua senha.' },
+          { status: 401 }
+        );
+      }
+
+      const currentPassword = String(body.currentPassword || '');
+      const newPassword = String(body.newPassword || '');
+
+      if (!newPassword || newPassword.length < 8) {
+        return NextResponse.json(
+          { error: 'A nova senha deve ter no mínimo 8 caracteres.' },
+          { status: 400 }
+        );
+      }
+
+      const rows = await db.query<{ id: string; password_hash: string }>(
+        'SELECT id, password_hash FROM users WHERE id = $1 LIMIT 1',
+        [session.userId]
+      );
+
+      if (rows.length === 0) {
+        return NextResponse.json({ error: 'Usuário não encontrado.' }, { status: 404 });
+      }
+
+      if (currentPassword) {
+        const valid = verifyPassword(currentPassword, rows[0].password_hash);
+        if (!valid) {
+          return NextResponse.json({ error: 'Senha atual incorreta.' }, { status: 400 });
+        }
+      }
+
+      const newHash = hashPassword(newPassword);
+      await db.query(
+        'UPDATE users SET password_hash = $1, updated_at = CURRENT_TIMESTAMP WHERE id = $2',
+        [newHash, session.userId]
+      );
+
+      return NextResponse.json({
+        success: true,
+        message: 'Senha alterada com sucesso!',
+      });
+    }
+
+    // 4. Login Action (Standard / Admin / Partner)
     const email = String(body.email || '').trim().toLowerCase();
     const password = String(body.password || '');
 
