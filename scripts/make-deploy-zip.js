@@ -18,12 +18,11 @@ console.log('2. Unpacking git archive...');
 execSync(`powershell -NoProfile -Command "Expand-Archive -Path '${gitZip}' -DestinationPath '${tempDir}' -Force"`);
 fs.unlinkSync(gitZip);
 
-console.log('3. Copying production .next build...');
-const srcNext = path.join(srcDir, '.next');
-const destNext = path.join(tempDir, '.next');
-execSync(`powershell -NoProfile -Command "Copy-Item -Recurse -Force '${srcNext}' '${destNext}'"`);
+// Note: Do NOT copy .next directory into deploy zip!
+// Hostinger cloud build pipeline (hbuilds) runs "npm install" followed by "npm run build"
+// directly on its Linux container. Including a stale Windows .next directory causes EACCES permission errors.
 
-console.log('4. Creating rbscriacao-v3-deploy.zip...');
+console.log('3. Creating rbscriacao-v3-deploy.zip (clean source package for Hostinger Cloud Build)...');
 if (fs.existsSync(targetZip)) fs.unlinkSync(targetZip);
 execSync(`powershell -NoProfile -Command "Compress-Archive -Path '${tempDir}\\*' -DestinationPath '${targetZip}' -CompressionLevel Optimal"`);
 
