@@ -200,7 +200,7 @@ export function StoreHeader() {
           </Link>
 
           {/* Discreet User State & Logout */}
-          {currentUser ? (
+          {currentUser && (
             <div className="hidden sm:flex items-center gap-2 rounded-xl border border-[#E6E2DA] bg-white px-3 py-1.5 text-xs text-[#24232A]">
               <span className="h-1.5 w-1.5 rounded-full bg-emerald-500 animate-pulse" />
               <Link
@@ -220,18 +220,12 @@ export function StoreHeader() {
                 Sair
               </button>
             </div>
-          ) : (
-            <Link
-              href="/login"
-              className="hidden sm:inline-flex items-center rounded-xl border border-[#E6E2DA] bg-white px-3 py-2 text-xs font-semibold text-[#5A5863] hover:border-[#563487] hover:text-[#563487] transition"
-            >
-              Entrar
-            </Link>
           )}
 
           <Link
-            href={currentUser ? '/minha-conta' : '/login'}
-            aria-label="Minha conta e pedidos"
+            href={currentUser ? (currentUser.role === 'admin' || currentUser.role === 'operator' ? '/admin' : '/minha-conta') : '/login'}
+            aria-label={currentUser ? 'Minha conta' : 'Entrar na conta'}
+            title={currentUser ? `Conectado como ${currentUser.name}` : 'Entrar na conta'}
             className="relative inline-flex h-11 w-11 items-center justify-center rounded-xl border border-[#E6E2DA] bg-white text-[#24232A] transition hover:border-[#563487]/40 hover:bg-[#F3EFFA] hover:text-[#563487]"
           >
             <User className="h-4 w-4" />

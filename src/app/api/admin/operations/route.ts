@@ -1,4 +1,5 @@
 import { NextRequest, NextResponse } from 'next/server';
+import { cookies } from 'next/headers';
 import { getDb } from '@/db';
 import { validateSessionFromCookie, SESSION_COOKIE_NAME } from '@/lib/auth';
 import {
@@ -12,8 +13,13 @@ export async function POST(req: NextRequest) {
   try {
     const db = await getDb();
 
-    // 1. Authenticate user from HttpOnly session cookie
-    const token = req.cookies.get(SESSION_COOKIE_NAME)?.value;
+    // 1. Authenticate user from HttpOnly session cookie, headers or next cookies
+    const cookieStore = await cookies();
+    const token =
+      req.cookies.get(SESSION_COOKIE_NAME)?.value ||
+      cookieStore.get(SESSION_COOKIE_NAME)?.value ||
+      req.headers.get('authorization')?.replace(/^Bearer\s+/i, '');
+
     const session = await validateSessionFromCookie(db, token);
 
     if (!session) {
@@ -451,6 +457,7 @@ export async function POST(req: NextRequest) {
         const priceCents = Math.round(Number(body.priceBrl || 99.9) * 100);
         const costCents = Math.round(Number(body.costBrl || 32) * 100);
         const stockQty = Math.max(0, Number(body.stockQty ?? 10));
+        const featured = Boolean(body.featured);
 
         await db.query(
           `INSERT INTO products (
@@ -460,7 +467,7 @@ export async function POST(req: NextRequest) {
             print_time_minutes, price_cents, cost_cents, stock_qty,
             care_instructions, layer_notice, model_3d_glb_url, images_json, featured
           ) VALUES (
-            $1,$2,$3,$4,$5,$6,$7,$8,$9,$10,$11,$12,$13,$14,$15,$16,$17,$18,$19,$20,$21,$22,'/models/vaso-voronoi-rbs.glb',$23,FALSE
+            $1,$2,$3,$4,$5,$6,$7,$8,$9,$10,$11,$12,$13,$14,$15,$16,$17,$18,$19,$20,$21,$22,'/models/vaso-voronoi-rbs.glb',$23,$24
           )`,
           [
             id,
@@ -486,6 +493,7 @@ export async function POST(req: NextRequest) {
             'Uso interno. Limpar com pano de microfibra levemente úmido. Não expor acima de 55 °C.',
             'Peça produzida por manufatura aditiva (impressão 3D camada a camada).',
             JSON.stringify(body.images || []),
+            featured,
           ]
         );
 
@@ -496,6 +504,114 @@ export async function POST(req: NextRequest) {
         );
 
         return NextResponse.json({ success: true, productId: id });
+      }
+
+      case 'update_product': {
+        const {
+          productId,
+          name,
+          sku,
+          categoryId,
+          material,
+          finish,
+          leadTimeDays,
+          dimensionsMm,
+          shortDescription,
+          description,
+          priceBrl,
+          costBrl,
+          stockQty,
+          filamentGrams,
+          images,
+          featured,
+        } = body;
+
+        if (!productId) {
+          return NextResponse.json({ error: 'ID do produto é obrigatório.' }, { status: 400 });
+        }
+
+        const priceCents = priceBrl !== undefined ? Math.round(Number(priceBrl) * 100) : null;
+        const costCents = costBrl !== undefined ? Math.round(Number(costBrl) * 100) : null;
+        const parsedStock = stockQty !== undefined ? Math.max(0, Number(stockQty)) : null;
+        const parsedLeadTime = leadTimeDays !== undefined ? Math.max(1, Number(leadTimeDays)) : null;
+        const parsedFilament = filamentGrams !== undefined ? Math.max(0, Number(filamentGrams)) : null;
+        const imagesJson = images !== undefined ? JSON.stringify(images) : null;
+        const parsedFeatured = featured !== undefined ? Boolean(featured) : null;
+
+        await db.query(
+          `UPDATE products
+           SET name = COALESCE($1, name),
+               sku = COALESCE($2, sku),
+               category_id = COALESCE($3, category_id),
+               material = COALESCE($4, material),
+               finish = COALESCE($5, finish),
+               lead_time_days = COALESCE($6, lead_time_days),
+               dimensions_mm = COALESCE($7, dimensions_mm),
+               short_description = COALESCE($8, short_description),
+               description = COALESCE($9, description),
+               price_cents = COALESCE($10, price_cents),
+               cost_cents = COALESCE($11, cost_cents),
+               stock_qty = COALESCE($12, stock_qty),
+               filament_grams_per_unit = COALESCE($13, filament_grams_per_unit),
+               images_json = COALESCE($14, images_json),
+               featured = COALESCE($15, featured),
+               updated_at = CURRENT_TIMESTAMP
+           WHERE id = $16`,
+          [
+            name || null,
+            sku || null,
+            categoryId || null,
+            material || null,
+            finish || null,
+            parsedLeadTime,
+            dimensionsMm || null,
+            shortDescription || null,
+            description || null,
+            priceCents,
+            costCents,
+            parsedStock,
+            parsedFilament,
+            imagesJson,
+            parsedFeatured,
+            productId,
+          ]
+        );
+
+        if (parsedStock !== null) {
+          const invRows = await db.query<any>(
+            `SELECT id FROM inventory_balances WHERE product_id = $1 AND location_id = 'loc-expedition'`,
+            [productId]
+          );
+          if (invRows.length > 0) {
+            await db.query(
+              `UPDATE inventory_balances SET on_hand_qty = $1 WHERE id = $2`,
+              [parsedStock, invRows[0].id]
+            );
+          } else {
+            await db.query(
+              `INSERT INTO inventory_balances (id, product_id, variation_id, location_id, on_hand_qty, reserved_qty, min_stock_qty)
+               VALUES ($1, $2, NULL, 'loc-expedition', $3, 0, 2)`,
+              [`bal-exp-${productId}`, productId, parsedStock]
+            );
+          }
+        }
+
+        return NextResponse.json({ success: true, productId });
+      }
+
+      case 'delete_product': {
+        const { productId } = body;
+        if (!productId) {
+          return NextResponse.json({ error: 'ID do produto é obrigatório.' }, { status: 400 });
+        }
+
+        // Clean up balances and variations first
+        await db.query(`DELETE FROM inventory_balances WHERE product_id = $1`, [productId]);
+        await db.query(`DELETE FROM product_variations WHERE product_id = $1`, [productId]);
+        await db.query(`DELETE FROM consignment_items WHERE product_id = $1`, [productId]);
+        await db.query(`DELETE FROM products WHERE id = $1`, [productId]);
+
+        return NextResponse.json({ success: true, productId });
       }
 
       default:

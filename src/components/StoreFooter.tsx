@@ -202,14 +202,6 @@ export function StoreFooter() {
                 Privacidade e dados (LGPD)
               </Link>
             </li>
-            <li className="pt-2">
-              <Link
-                href="/admin"
-                className="text-xs font-medium text-[#6E6B78] underline decoration-[#D5CFC4] underline-offset-4 transition hover:text-[#563487]"
-              >
-                Acesso administrativo (Área restrita)
-              </Link>
-            </li>
           </ul>
         </div>
       </div>
