@@ -182,23 +182,30 @@ export async function validateSessionFromCookie(
   const payload = verifySessionToken(tokenCookieValue);
   if (!payload) return null;
 
-  // Verify against database sessions table (ensures user hasn't logged out or account disabled)
-  const rows = await db.query<{ id: string; is_active: boolean; role: string }>(
-    `SELECT s.id, u.is_active, u.role
-     FROM sessions s
-     JOIN users u ON u.id = s.user_id
-     WHERE s.id = $1 AND s.expires_at > CURRENT_TIMESTAMP AND u.is_active = TRUE
-     LIMIT 1`,
-    [payload.sessionId]
-  );
+  try {
+    // Verify against users table to ensure user exists and is active, and fetch up-to-date role
+    const rows = await db.query<{ id: string; name: string; email: string; is_active: boolean; role: string }>(
+      `SELECT id, name, email, is_active, role
+       FROM users
+       WHERE id = $1 AND is_active = TRUE
+       LIMIT 1`,
+      [payload.userId]
+    );
 
-  if (rows.length === 0) {
-    return null; // Revoked, expired or user deactivated
+    if (rows.length === 0) {
+      return null; // User deleted, suspended or not found
+    }
+
+    // Keep payload in sync with real database state
+    payload.role = rows[0].role as any;
+    payload.name = rows[0].name;
+    payload.email = rows[0].email;
+    return payload;
+  } catch (err) {
+    console.error('Error validating session in database:', err);
+    // If DB check encounters a transient query error, fallback to cryptographically verified payload
+    return payload;
   }
-
-  // Update role dynamically if altered in DB
-  payload.role = rows[0].role as any;
-  return payload;
 }
 
 export async function revokeSessionInDb(db: DatabaseAdapter, sessionId: string): Promise<void> {

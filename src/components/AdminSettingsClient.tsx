@@ -68,6 +68,7 @@ export function AdminSettingsClient({ team, jobs, audit, initialBrandSettings }:
       const res = await fetch('/api/settings', {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
+        credentials: 'include',
         body: JSON.stringify(brandSettings),
       });
       const data = await res.json();
@@ -106,6 +107,7 @@ export function AdminSettingsClient({ team, jobs, audit, initialBrandSettings }:
       const res = await fetch('/api/auth', {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
+        credentials: 'include',
         body: JSON.stringify({
           action: 'change_password',
           currentPassword: currentPass,
@@ -203,6 +205,7 @@ export function AdminSettingsClient({ team, jobs, audit, initialBrandSettings }:
       const res = await fetch('/api/auth', {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
+        credentials: 'include',
         body: JSON.stringify({
           action: 'admin_set_password',
           targetUserId: resetModal.user.id,
@@ -236,6 +239,7 @@ export function AdminSettingsClient({ team, jobs, audit, initialBrandSettings }:
       const res = await fetch('/api/auth', {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
+        credentials: 'include',
         body: JSON.stringify({
           action: 'admin_create_user',
           name: createModal.name,
@@ -272,6 +276,7 @@ export function AdminSettingsClient({ team, jobs, audit, initialBrandSettings }:
       const res = await fetch('/api/auth', {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
+        credentials: 'include',
         body: JSON.stringify({
           action: 'admin_delete_user',
           targetUserId: deleteModal.user.id,

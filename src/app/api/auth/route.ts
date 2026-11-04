@@ -1,4 +1,5 @@
 import { NextRequest, NextResponse } from 'next/server';
+import { cookies } from 'next/headers';
 import { getDb } from '@/db';
 import {
   hashPassword,
@@ -9,10 +10,27 @@ import {
   SESSION_COOKIE_NAME,
 } from '@/lib/auth';
 
+async function getSessionToken(req: NextRequest): Promise<string | undefined> {
+  let token = req.cookies.get(SESSION_COOKIE_NAME)?.value;
+  if (!token) {
+    try {
+      const cookieStore = await cookies();
+      token = cookieStore.get(SESSION_COOKIE_NAME)?.value;
+    } catch {}
+  }
+  if (!token) {
+    const authHeader = req.headers.get('authorization');
+    if (authHeader?.startsWith('Bearer ')) {
+      token = authHeader.slice(7);
+    }
+  }
+  return token;
+}
+
 export async function GET(req: NextRequest) {
   try {
     const db = await getDb();
-    const token = req.cookies.get(SESSION_COOKIE_NAME)?.value;
+    const token = await getSessionToken(req);
     const session = await validateSessionFromCookie(db, token);
 
     if (!session) {
@@ -45,7 +63,7 @@ export async function POST(req: NextRequest) {
 
     // 1. Logout Action
     if (body.action === 'logout') {
-      const token = req.cookies.get(SESSION_COOKIE_NAME)?.value;
+      const token = await getSessionToken(req);
       if (token) {
         const session = await validateSessionFromCookie(db, token);
         if (session) {
@@ -128,7 +146,7 @@ export async function POST(req: NextRequest) {
 
     // 3. Change Password Action (Authenticated User)
     if (body.action === 'change_password') {
-      const token = req.cookies.get(SESSION_COOKIE_NAME)?.value;
+      const token = await getSessionToken(req);
       const session = await validateSessionFromCookie(db, token);
       if (!session) {
         return NextResponse.json(
@@ -147,8 +165,8 @@ export async function POST(req: NextRequest) {
         );
       }
 
-      const rows = await db.query<{ id: string; password_hash: string }>(
-        'SELECT id, password_hash FROM users WHERE id = $1 LIMIT 1',
+      const rows = await db.query<{ id: string; name: string; email: string; role: string; password_hash: string }>(
+        'SELECT id, name, email, role, password_hash FROM users WHERE id = $1 LIMIT 1',
         [session.userId]
       );
 
@@ -156,6 +174,7 @@ export async function POST(req: NextRequest) {
         return NextResponse.json({ error: 'Usuário não encontrado.' }, { status: 404 });
       }
 
+      // If current password is provided, verify it (unless user is admin altering their account)
       if (currentPassword) {
         const valid = verifyPassword(currentPassword, rows[0].password_hash);
         if (!valid) {
@@ -169,15 +188,43 @@ export async function POST(req: NextRequest) {
         [newHash, session.userId]
       );
 
-      return NextResponse.json({
+      // Audit log
+      await db.query(
+        `INSERT INTO audit_logs (id, actor_user_id, actor_name, actor_role, action, entity_type, entity_id, after_json)
+         VALUES ($1, $2, $3, $4, 'change_password', 'users', $5, $6)`,
+        [
+          `aud-${Date.now()}`,
+          session.userId,
+          session.name,
+          session.role,
+          session.userId,
+          JSON.stringify({ email: rows[0].email })
+        ]
+      );
+
+      const response = NextResponse.json({
         success: true,
         message: 'Senha alterada com sucesso!',
       });
+
+      // Refresh session token so the active session continues uninterrupted
+      const { token: refreshedToken } = await createSessionInDb(db, rows[0]);
+      response.cookies.set({
+        name: SESSION_COOKIE_NAME,
+        value: refreshedToken,
+        path: '/',
+        httpOnly: true,
+        secure: process.env.NODE_ENV === 'production',
+        sameSite: 'lax',
+        maxAge: 24 * 3600,
+      });
+
+      return response;
     }
 
     // 4. Admin Set/Reset User Password
     if (body.action === 'admin_set_password') {
-      const token = req.cookies.get(SESSION_COOKIE_NAME)?.value;
+      const token = await getSessionToken(req);
       const session = await validateSessionFromCookie(db, token);
       if (!session || session.role !== 'admin') {
         return NextResponse.json(
@@ -196,8 +243,8 @@ export async function POST(req: NextRequest) {
         );
       }
 
-      const target = await db.query<{ id: string; name: string; email: string }>(
-        'SELECT id, name, email FROM users WHERE id = $1 LIMIT 1',
+      const target = await db.query<{ id: string; name: string; email: string; role: string }>(
+        'SELECT id, name, email, role FROM users WHERE id = $1 LIMIT 1',
         [targetUserId]
       );
       if (target.length === 0) {
@@ -210,8 +257,10 @@ export async function POST(req: NextRequest) {
         [newHash, targetUserId]
       );
 
-      // Revoke any existing active sessions for this user so they must log in with the new password
-      await db.query('DELETE FROM sessions WHERE user_id = $1', [targetUserId]);
+      // If resetting another user's password, revoke their sessions
+      if (targetUserId !== session.userId) {
+        await db.query('DELETE FROM sessions WHERE user_id = $1', [targetUserId]);
+      }
 
       // Audit log
       await db.query(
@@ -227,15 +276,31 @@ export async function POST(req: NextRequest) {
         ]
       );
 
-      return NextResponse.json({
+      const response = NextResponse.json({
         success: true,
         message: `Senha de ${target[0].name} redefinida com sucesso!`,
       });
+
+      // If admin reset their OWN password, keep their session alive with a fresh cookie
+      if (targetUserId === session.userId) {
+        const { token: refreshedToken } = await createSessionInDb(db, target[0]);
+        response.cookies.set({
+          name: SESSION_COOKIE_NAME,
+          value: refreshedToken,
+          path: '/',
+          httpOnly: true,
+          secure: process.env.NODE_ENV === 'production',
+          sameSite: 'lax',
+          maxAge: 24 * 3600,
+        });
+      }
+
+      return response;
     }
 
     // 5. Admin Create Team/Access User
     if (body.action === 'admin_create_user') {
-      const token = req.cookies.get(SESSION_COOKIE_NAME)?.value;
+      const token = await getSessionToken(req);
       const session = await validateSessionFromCookie(db, token);
       if (!session || session.role !== 'admin') {
         return NextResponse.json(
@@ -264,10 +329,13 @@ export async function POST(req: NextRequest) {
         );
       }
 
-      const existing = await db.query('SELECT id FROM users WHERE LOWER(email) = $1 LIMIT 1', [email]);
+      const existing = await db.query<{ id: string; name: string }>(
+        'SELECT id, name FROM users WHERE LOWER(email) = $1 LIMIT 1',
+        [email]
+      );
       if (existing.length > 0) {
         return NextResponse.json(
-          { error: 'Este e-mail já está cadastrado no sistema.' },
+          { error: `O e-mail ${email} já está cadastrado no sistema como "${existing[0].name}". Para alterar a senha deste usuário, use o botão Redefinir Senha na tabela.` },
           { status: 400 }
         );
       }
@@ -303,7 +371,7 @@ export async function POST(req: NextRequest) {
 
     // 6. Admin Delete User
     if (body.action === 'admin_delete_user') {
-      const token = req.cookies.get(SESSION_COOKIE_NAME)?.value;
+      const token = await getSessionToken(req);
       const session = await validateSessionFromCookie(db, token);
       if (!session || session.role !== 'admin') {
         return NextResponse.json(
