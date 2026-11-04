@@ -196,6 +196,17 @@ export async function validateSessionFromCookie(
       return null; // User deleted, suspended or not found
     }
 
+    // Verify session has not been revoked in the database
+    if (payload.sessionId) {
+      const sessionRows = await db.query<{ id: string }>(
+        `SELECT id FROM sessions WHERE id = $1 AND expires_at > CURRENT_TIMESTAMP LIMIT 1`,
+        [payload.sessionId]
+      );
+      if (sessionRows.length === 0) {
+        return null; // Session revoked or expired
+      }
+    }
+
     // Keep payload in sync with real database state
     payload.role = rows[0].role as any;
     payload.name = rows[0].name;

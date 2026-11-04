@@ -184,7 +184,13 @@ test('5. Custódia Segura e Isolamento de Download de Anexos', async () => {
 test('6. Concorrência Crítica na Última Unidade em Consignação', async () => {
   const db = await getDb();
 
-  // Insere um item consignado para a remessa existente csg-001 com saldo de apenas 1 unidade
+  await db.query(
+    `INSERT INTO consignment_shipments (id, shipment_code, partner_id, location_id, status, expected_audit_date, notes)
+     VALUES ('csg-001', 'REM-CONSIG-TEST', 'prt-01', 'loc-consig-01', 'active', '2026-11-30', 'Remessa de teste')
+     ON CONFLICT (id) DO NOTHING`
+  );
+
+  // Insere um item consignado para a remessa csg-001 com saldo de apenas 1 unidade
   const cItemId = `csgi-lock-${Date.now()}`;
   await db.query(
     `INSERT INTO consignment_items (

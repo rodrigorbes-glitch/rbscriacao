@@ -141,12 +141,39 @@ async function initDatabase(): Promise<DatabaseAdapter> {
     }
   }
 
-  const migrationPath = path.join(process.cwd(), 'src', 'db', 'migrations', '001_initial_schema.sql');
-  const schemaSql = fs.readFileSync(migrationPath, 'utf8');
-  await adapter.exec(schemaSql);
-  await adapter.query(
-    `INSERT INTO schema_migrations (version) VALUES ('001_initial_schema') ON CONFLICT (version) DO NOTHING`
-  );
+  const migrationsDir = path.join(process.cwd(), 'src', 'db', 'migrations');
+  if (fs.existsSync(migrationsDir)) {
+    const files = fs.readdirSync(migrationsDir).filter((f) => f.endsWith('.sql')).sort();
+
+    // Run 001 first to ensure schema_migrations exists
+    const initialFile = files.find((f) => f.startsWith('001_'));
+    if (initialFile) {
+      const initialSql = fs.readFileSync(path.join(migrationsDir, initialFile), 'utf8');
+      await adapter.exec(initialSql);
+      const initialVer = path.basename(initialFile, '.sql');
+      await adapter.query(
+        `INSERT INTO schema_migrations (version) VALUES ($1) ON CONFLICT (version) DO NOTHING`,
+        [initialVer]
+      );
+    }
+
+    const appliedRows = await adapter.query<{ version: string }>(
+      'SELECT version FROM schema_migrations'
+    ).catch(() => []);
+    const appliedSet = new Set(appliedRows.map((r) => r.version));
+
+    for (const file of files) {
+      const version = path.basename(file, '.sql');
+      if (!appliedSet.has(version)) {
+        const sql = fs.readFileSync(path.join(migrationsDir, file), 'utf8');
+        await adapter.exec(sql);
+        await adapter.query(
+          `INSERT INTO schema_migrations (version) VALUES ($1) ON CONFLICT (version) DO NOTHING`,
+          [version]
+        );
+      }
+    }
+  }
 
   await seedDatabase(adapter);
   return adapter;
@@ -162,9 +189,14 @@ export async function getDb(): Promise<DatabaseAdapter> {
 export async function createIsolatedTestDb(): Promise<DatabaseAdapter> {
   const pg = await PGlite.create();
   const adapter = new PGliteAdapter(pg);
-  const migrationPath = path.join(process.cwd(), 'src', 'db', 'migrations', '001_initial_schema.sql');
-  const schemaSql = fs.readFileSync(migrationPath, 'utf8');
-  await adapter.exec(schemaSql);
+  const migrationsDir = path.join(process.cwd(), 'src', 'db', 'migrations');
+  if (fs.existsSync(migrationsDir)) {
+    const files = fs.readdirSync(migrationsDir).filter((f) => f.endsWith('.sql')).sort();
+    for (const file of files) {
+      const sql = fs.readFileSync(path.join(migrationsDir, file), 'utf8');
+      await adapter.exec(sql);
+    }
+  }
   await seedDatabase(adapter);
   return adapter;
 }

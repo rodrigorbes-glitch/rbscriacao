@@ -29,12 +29,6 @@ export async function seedDatabase(db: DatabaseAdapter): Promise<void> {
     );
   }
 
-  await db.query(
-    `INSERT INTO customer_addresses (id, user_id, label, recipient_name, cep, street, number, complement, neighborhood, city, state, is_default)
-     VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9, $10, $11, $12) ON CONFLICT (id) DO NOTHING`,
-    ['addr-1', 'usr-customer', 'Casa', 'Mariana Costa', '01310-100', 'Avenida Paulista', '1578', 'Apto 82', 'Bela Vista', 'São Paulo', 'SP', true]
-  );
-
   // 2. Categories & Collections
   const categories = [
     ['cat-vasos', 'vasos-cachepots', 'Decorar', 'Vasos esculturais, cachepots canelados e peças de centro para sala e mesa.', 'Flower2', '/products/real/vaso-espiral-cobre-mesa.png', 1],
@@ -596,379 +590,29 @@ export async function seedDatabase(db: DatabaseAdapter): Promise<void> {
      ON CONFLICT (id) DO NOTHING`
   );
 
-  // Consignment shipment & Comodato assets
-  await db.query(
-    `INSERT INTO consignment_shipments (id, shipment_code, partner_id, location_id, status, expected_audit_date, notes)
-     VALUES ('csg-001', 'REM-CONSIG-2026-01', 'prt-01', 'loc-consig-01', 'active', '2026-11-30', 'Remessa vitrine de primavera — Ateliê Camila Decor')
-     ON CONFLICT (id) DO NOTHING`
-  );
-  await db.query(
-    `INSERT INTO consignment_items (id, shipment_id, product_id, variation_id, dispatched_qty, sold_qty, returned_qty, damaged_qty, agreed_unit_price_cents, partner_commission_pct)
-     VALUES
-     ('csgi-01', 'csg-001', 'prod-vaso-voronoi', 'var-voronoi-terracota', 6, 2, 0, 0, 12990, 20.00),
-     ('csgi-02', 'csg-001', 'prod-cachepot-autodrenante', 'var-cachepot-bicolor', 4, 1, 0, 0, 10990, 20.00)
-     ON CONFLICT (id) DO NOTHING`
-  );
-  await db.query(
-    `INSERT INTO comodato_assets (id, asset_code, partner_id, location_id, asset_name, asset_type, quantity, declared_value_cents, condition_status, loaned_at, return_due_date, notes)
-     VALUES
-     ('cmd-01', 'COMOD-EXP-001', 'prt-01', 'loc-comod-01', 'Totem Expositor Iluminado RBS + Mostruário 5 Materiais (PLA/PETG/ABS/TPU/Resina)', 'expositor_acrilico_3d', 1, 68000, 'bom_estado', '2026-09-15', '2027-03-15', 'Bem patrimonial da RBS Criação cedido em comodato para demonstração física de camadas e cores.')
-     ON CONFLICT (id) DO NOTHING`
-  );
 
-  // 6. Orders, Order Items, Kanban Production Jobs & Logged Print Failure
-  const orders = [
-    {
-      id: 'ord-1001',
-      order_number: 'RBS-2026-1001',
-      user_id: 'usr-customer',
-      guest_name: 'Mariana Costa',
-      guest_email: 'cliente@rbscriacao.com',
-      guest_phone: '(11) 98765-4321',
-      guest_cpf_cnpj: '345.678.901-23',
-      shipping_address_json: JSON.stringify({
-        cep: '01310-100', street: 'Avenida Paulista', number: '1578', complement: 'Apto 82',
-        neighborhood: 'Bela Vista', city: 'São Paulo', state: 'SP',
-      }),
-      shipping_service_name: 'SEDEX (Melhor Envio)',
-      shipping_carrier: 'Correios',
-      shipping_tracking_code: 'QE849201925BR',
-      shipping_days: 2,
-      manufacturing_days: 1,
-      total_estimated_days: 3,
-      subtotal_cents: 22480,
-      discount_cents: 1124,
-      shipping_cents: 2190,
-      total_cents: 23546,
-      gateway_fee_estimated_cents: 1175,
-      gateway_fee_actual_cents: 1215, // R$ 0,40 divergence reconciled in Financial module!
-      coupon_code: 'PARCEIRO10',
-      partner_id: 'prt-01',
-      partner_code: 'PARCEIRO10',
-      payment_method: 'pix',
-      payment_external_id: 'mp_pay_99812301',
-      idempotency_key: 'idem-ord-1001',
-      financial_status: 'paid',
-      production_status: 'shipped',
-      fulfillment_status: 'in_transit',
-      cart_selection_mode: 'partial',
-      unselected_items_preserved_count: 1,
-      claim_token: 'claim-token-1001',
-    },
-    {
-      id: 'ord-1002',
-      order_number: 'RBS-2026-1002',
-      user_id: null,
-      guest_name: 'Rafael Albuquerque',
-      guest_email: 'rafael.albuquerque@empresa.com.br',
-      guest_phone: '(21) 99123-4567',
-      guest_cpf_cnpj: '112.233.445-56',
-      shipping_address_json: JSON.stringify({
-        cep: '22410-003', street: 'Rua Visconde de Pirajá', number: '414', complement: 'Sala 502',
-        neighborhood: 'Ipanema', city: 'Rio de Janeiro', state: 'RJ',
-      }),
-      shipping_service_name: 'Jadlog .Package',
-      shipping_carrier: 'Jadlog',
-      shipping_tracking_code: null,
-      shipping_days: 2,
-      manufacturing_days: 3,
-      total_estimated_days: 5,
-      subtotal_cents: 18990,
-      discount_cents: 0,
-      shipping_cents: 1690,
-      total_cents: 20680,
-      gateway_fee_estimated_cents: 1032,
-      gateway_fee_actual_cents: 1032,
-      coupon_code: null,
-      partner_id: null,
-      partner_code: null,
-      payment_method: 'credit_card',
-      payment_external_id: 'mp_pay_99812302',
-      idempotency_key: 'idem-ord-1002',
-      financial_status: 'paid',
-      production_status: 'printing',
-      fulfillment_status: 'unfulfilled',
-      cart_selection_mode: 'full',
-      unselected_items_preserved_count: 0,
-      claim_token: 'claim-token-1002',
-    },
-    {
-      id: 'ord-1003',
-      order_number: 'RBS-2026-1003',
-      user_id: null,
-      guest_name: 'Clínica Odonto Prime LTDA',
-      guest_email: 'compras@odontoprime.com.br',
-      guest_phone: '(31) 98444-3322',
-      guest_cpf_cnpj: '45.678.901/0001-88',
-      shipping_address_json: JSON.stringify({
-        cep: '30140-071', street: 'Rua dos Aimorés', number: '980', complement: 'Conj 1101',
-        neighborhood: 'Funcionários', city: 'Belo Horizonte', state: 'MG',
-      }),
-      shipping_service_name: 'SEDEX Corporativo',
-      shipping_carrier: 'Correios',
-      shipping_tracking_code: null,
-      shipping_days: 3,
-      manufacturing_days: 4,
-      total_estimated_days: 7,
-      subtotal_cents: 29990,
-      discount_cents: 0,
-      shipping_cents: 2490,
-      total_cents: 32480,
-      gateway_fee_estimated_cents: 322,
-      gateway_fee_actual_cents: 322,
-      coupon_code: null,
-      partner_id: null,
-      partner_code: null,
-      payment_method: 'pix',
-      payment_external_id: 'mp_pay_99812303',
-      idempotency_key: 'idem-ord-1003',
-      financial_status: 'paid',
-      production_status: 'queued',
-      fulfillment_status: 'unfulfilled',
-      cart_selection_mode: 'full',
-      unselected_items_preserved_count: 0,
-      claim_token: 'claim-token-1003',
-    },
-    {
-      id: 'ord-1004',
-      order_number: 'RBS-2026-1004',
-      user_id: null,
-      guest_name: 'Fernanda Lemos',
-      guest_email: 'fernanda.lemos@email.com',
-      guest_phone: '(41) 99871-1122',
-      guest_cpf_cnpj: '556.677.889-90',
-      shipping_address_json: JSON.stringify({
-        cep: '80420-090', street: 'Avenida do Batel', number: '1230', complement: 'Casa',
-        neighborhood: 'Batel', city: 'Curitiba', state: 'PR',
-      }),
-      shipping_service_name: 'PAC (Melhor Envio)',
-      shipping_carrier: 'Correios',
-      shipping_tracking_code: null,
-      shipping_days: 5,
-      manufacturing_days: 2,
-      total_estimated_days: 7,
-      subtotal_cents: 11490,
-      discount_cents: 0,
-      shipping_cents: 2290,
-      total_cents: 13780,
-      gateway_fee_estimated_cents: 136,
-      gateway_fee_actual_cents: null,
-      coupon_code: null,
-      partner_id: null,
-      partner_code: null,
-      payment_method: 'pix',
-      payment_external_id: 'mp_pay_99812304',
-      idempotency_key: 'idem-ord-1004',
-      financial_status: 'pending',
-      production_status: 'awaiting_payment',
-      fulfillment_status: 'unfulfilled',
-      cart_selection_mode: 'partial',
-      unselected_items_preserved_count: 2,
-      claim_token: 'claim-token-1004',
-    },
-  ];
 
-  for (const o of orders) {
-    await db.query(
-      `INSERT INTO orders (
-        id, order_number, user_id, guest_name, guest_email, guest_phone, guest_cpf_cnpj,
-        shipping_address_json, shipping_service_name, shipping_carrier, shipping_tracking_code,
-        shipping_days, manufacturing_days, total_estimated_days,
-        subtotal_cents, discount_cents, shipping_cents, total_cents,
-        gateway_fee_estimated_cents, gateway_fee_actual_cents,
-        coupon_code, partner_id, partner_code, payment_method, payment_external_id, idempotency_key,
-        financial_status, production_status, fulfillment_status,
-        cart_selection_mode, unselected_items_preserved_count, post_purchase_claim_token
-      ) VALUES (
-        $1,$2,$3,$4,$5,$6,$7,$8,$9,$10,$11,$12,$13,$14,$15,$16,$17,$18,$19,$20,$21,$22,$23,$24,$25,$26,$27,$28,$29,$30,$31,$32
-      ) ON CONFLICT (id) DO NOTHING`,
-      [
-        o.id, o.order_number, o.user_id, o.guest_name, o.guest_email, o.guest_phone, o.guest_cpf_cnpj,
-        o.shipping_address_json, o.shipping_service_name, o.shipping_carrier, o.shipping_tracking_code,
-        o.shipping_days, o.manufacturing_days, o.total_estimated_days,
-        o.subtotal_cents, o.discount_cents, o.shipping_cents, o.total_cents,
-        o.gateway_fee_estimated_cents, o.gateway_fee_actual_cents,
-        o.coupon_code, o.partner_id, o.partner_code, o.payment_method, o.payment_external_id, o.idempotency_key,
-        o.financial_status, o.production_status, o.fulfillment_status,
-        o.cart_selection_mode, o.unselected_items_preserved_count, o.claim_token,
-      ]
-    );
-  }
 
-  const orderItems = [
-    ['oi-1001-1', 'ord-1001', 'prod-vaso-voronoi', 'var-voronoi-terracota', 'RBS-DEC-001-TER', 'Vaso Voronoi Orgânico Escultural', 'Terracota Seda • Médio (22 cm)', 'PLA', 'ready_stock', 1, 1, 12990, 3850, 'Para Mamãe 2026', null, 215, 215],
-    ['oi-1001-2', 'ord-1001', 'prod-suporte-headset', 'var-headset-carbon', 'RBS-ORG-003-CRB', 'Suporte de Headset & Controle Low-Poly Carbon', 'Preto Carbono PEI', 'PETG', 'ready_stock', 1, 1, 9490, 3120, 'MARI_DEV', null, 240, 240],
-    ['oi-1002-1', 'ord-1002', 'prod-luminaria-lua', 'var-lua-quente', 'RBS-PRE-002-QNT', 'Luminária Lua Cheia Litofania 3D + Base Madeira', 'Branco Lunar (LED Quente 3000K)', 'PLA', 'made_to_order', 3, 1, 18990, 5400, 'Rafael & Júlia • 12/11', 'Favor revisar contraste da cratera Tycho', 280, 280],
-    ['oi-1003-1', 'ord-1003', 'prod-chaveiro-nfc-lote', 'var-chaveiro-25', 'RBS-B2B-006-P25', 'Pack 25 Chaveiros Corporativos 3D Relevo Dupla Cor + Tag NFC', 'Personalizado Cores da Marca • Lote 25 un', 'PETG', 'made_to_order', 4, 1, 29990, 9800, 'OdontoPrime', 'Link NFC: https://instagram.com/rbscriacao', 450, null],
-    ['oi-1004-1', 'ord-1004', 'prod-dragao-articulado', 'var-dragao-cobre', 'RBS-PRE-005-CBE', 'Dragão Imperial Articulado Print-in-Place (45 cm)', 'Dual Cobre & Esmeralda', 'PLA', 'ready_stock', 2, 1, 11490, 3450, null, null, 190, null],
-  ];
 
-  for (const oi of orderItems) {
-    await db.query(
-      `INSERT INTO order_items (
-        id, order_id, product_id, variation_id, sku_snapshot, product_name_snapshot, variation_label_snapshot,
-        material_snapshot, availability_snapshot, lead_time_days_snapshot, quantity, unit_price_cents, unit_cost_cents,
-        custom_text, custom_notes, filament_grams_estimated, filament_grams_actual
-      ) VALUES ($1,$2,$3,$4,$5,$6,$7,$8,$9,$10,$11,$12,$13,$14,$15,$16,$17) ON CONFLICT (id) DO NOTHING`,
-      oi
-    );
-  }
 
-  // Production Kanban Jobs
-  const jobs = [
-    ['job-1001', 'ord-1001', 'oi-1001-1', 'prod-vaso-voronoi', 'LOTE-2026-10A', 'Bambu Lab X1C #01', 'sup-pla-terracota', 'shipped', 'normal', 1, 215, 215, 0, 245, true, 'Inspeção de superfície aprovada e despachado via SEDEX.'],
-    ['job-1002', 'ord-1002', 'oi-1002-1', 'prod-luminaria-lua', 'LOTE-2026-10B', 'Bambu Lab P1S #02', 'sup-pla-branco', 'printing', 'high', 1, 280, 280, 42, 420, false, 'Reimpressão iniciada após queda de aderência parcial no suporte inicial (42g registrados como perda).'],
-    ['job-1003', 'ord-1003', 'oi-1003-1', 'prod-chaveiro-nfc-lote', 'LOTE-2026-10C', 'Bambu Lab X1C #01 (AMS)', 'sup-petg-carbon', 'queued', 'high', 1, 450, 0, 0, 390, false, 'Pausa programada na camada #14 (2,20 mm) para inserção das 25 tags NFC NTAG213.'],
-    ['job-1004', 'ord-1004', 'oi-1004-1', 'prod-dragao-articulado', 'LOTE-2026-10D', 'Bambu Lab A1 #03', 'sup-pla-dual', 'awaiting_payment', 'normal', 1, 190, 0, 0, 290, false, 'Aguardando compensação do Pix para liberar fila de máquina.'],
-    ['job-1005', 'ord-1001', 'oi-1001-2', 'prod-suporte-headset', 'LOTE-2026-10E', 'Bambu Lab P1S #02', 'sup-petg-carbon', 'ready_to_ship', 'normal', 1, 240, 240, 0, 260, true, 'Acabamento de borda concluído e conferido com paquímetro digital.'],
-    ['job-1006', null, null, 'prod-cachepot-autodrenante', 'LOTE-2026-REP', 'Bambu Lab A1 #03', 'sup-petg-carbon', 'post_processing', 'normal', 2, 520, 520, 0, 550, false, 'Reposição de estoque interno — removendo brim e testando rosca do reservatório.'],
-  ];
 
-  for (const j of jobs) {
-    await db.query(
-      `INSERT INTO production_jobs (
-        id, order_id, order_item_id, product_id, batch_code, printer_name, supply_id,
-        stage, priority, quantity, estimated_grams, actual_grams_consumed, wasted_grams,
-        estimated_minutes, quality_checklist_passed, operator_notes
-      ) VALUES ($1,$2,$3,$4,$5,$6,$7,$8,$9,$10,$11,$12,$13,$14,$15,$16) ON CONFLICT (id) DO NOTHING`,
-      j
-    );
-  }
 
-  await db.query(
-    `INSERT INTO production_failures (id, production_job_id, order_id, supply_id, wasted_grams, waste_cost_cents, failure_reason, reprint_triggered, recorded_by)
-     VALUES ('fail-01', 'job-1002', 'ord-1002', 'sup-pla-branco', 42, 462, 'Descolamento de suporte árvore na altura 38mm — mesa higienizada com IPA e reimpressão disparada.', true, 'Lucas Bancada 3D')
-     ON CONFLICT (id) DO NOTHING`
-  );
 
-  // Inventory movements ledger
-  const movements = [
-    ['mov-01', 'supply', null, null, 'sup-pla-terracota', null, 'loc-factory', 'purchase_entry', 5000, 12, 'supply_purchase', 'FIN-PAY-001', 'Compra de 5 bobinas de 1kg (5.000g) PLA Seda Terracota', 'Rodrigo Souza'],
-    ['mov-02', 'supply', null, null, 'sup-pla-terracota', 'loc-factory', null, 'supply_consumption', 215, 12, 'production_job', 'job-1001', 'Consumo real de filamento na O.P. LOTE-2026-10A (Pedido RBS-2026-1001)', 'Lucas Bancada 3D'],
-    ['mov-03', 'supply', null, null, 'sup-pla-branco', 'loc-factory', null, 'print_failure_waste', 42, 11, 'production_failure', 'fail-01', 'Perda por falha de aderência em suporte — O.P. LOTE-2026-10B', 'Lucas Bancada 3D'],
-    ['mov-04', 'supply', null, null, 'sup-pla-branco', 'loc-factory', null, 'reprint_consumption', 280, 11, 'production_job', 'job-1002', 'Consumo de reimpressão da Luminária Lua Litofania', 'Lucas Bancada 3D'],
-    ['mov-05', 'product', 'prod-vaso-voronoi', 'var-voronoi-terracota', null, 'loc-expedition', 'loc-consig-01', 'consignment_send', 6, 3850, 'consignment_shipment', 'csg-001', 'Envio de 6 unidades em consignação para Ateliê Camila Decor', 'Rodrigo Souza'],
-  ];
 
-  for (const m of movements) {
-    await db.query(
-      `INSERT INTO inventory_movements (
-        id, item_type, product_id, variation_id, supply_id, from_location_id, to_location_id,
-        movement_type, quantity, unit_cost_cents, reference_type, reference_id, reason, actor_name
-      ) VALUES ($1,$2,$3,$4,$5,$6,$7,$8,$9,$10,$11,$12,$13,$14) ON CONFLICT (id) DO NOTHING`,
-      m
-    );
-  }
 
-  // 7. Custom Quotes (/personalizados workflow)
-  await db.query(
-    `INSERT INTO custom_quotes (
-      id, quote_number, user_id, client_name, client_email, client_phone, company_name,
-      project_title, description, intended_use, preferred_material, preferred_color,
-      dimensions_description, quantity, deadline_desired, file_name, file_size_bytes,
-      file_checksum_sha256, file_private_path, status, estimated_grams, estimated_print_minutes,
-      quoted_price_cents, quoted_manufacturing_days, quoted_validity_date, admin_internal_notes
-    ) VALUES
-    (
-      'quo-2001', 'ORC-2026-2001', 'usr-customer', 'Mariana Costa', 'cliente@rbscriacao.com', '(11) 98765-4321', NULL,
-      'Suporte Sob Medida para Cafeteira Espresso + Porta Tamper 58mm',
-      'Preciso de uma estação organizadora para tamper 58mm, distribuidor e funil, resistente a respingos de água e café quente.',
-      'contato_agua', 'PETG', 'Preto Carbono PEI', '210 x 140 x 75 mm', 1, '15/11/2026',
-      'estacao-barista-58mm.stl', 2845120, 'e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855',
-      '/private-storage/quotes/ORC-2026-2001/estacao-barista-58mm.stl', 'quoted', 340, 390,
-      16800, 3, '2026-11-20', 'Geometria validada no fatiador; parede de 4 perímetros e preenchimento gyroid 25%.'
-    ),
-    (
-      'quo-2002', 'ORC-2026-2002', NULL, 'Eng. Roberto Mendes', 'roberto@mendesautomacao.com.br', '(21) 98222-3344', 'Mendes Automação Industrial',
-      'Gabinete Técnico Din-Rail com Aletas de Ventilação (Lote 15 pçs)',
-      'Caixa de proteção para placa controladora IoT com suporte para trilho DIN 35mm e resistência térmica em painel.',
-      'funcional_mecanico', 'ABS', 'Cinza Industrial', '115 x 90 x 55 mm', 15, '25/11/2026',
-      'case-iot-din35-v4.step', 5412800, '8f434346648f6b96df89dda901c5176b10a6d83961dd3c1ac88b59b2dc327aa4',
-      '/private-storage/quotes/ORC-2026-2002/case-iot-din35-v4.step', 'analyzing', 1650, 1420,
-      NULL, NULL, NULL, 'Analisando contração térmica em ABS fechado na Bambu X1C.'
-    ),
-    (
-      'quo-2003', 'ORC-2026-2003', NULL, 'Agência Vértice Live Marketing', 'producao@verticelive.com.br', '(11) 97111-9090', 'Vértice Eventos',
-      'Troféu Geométrico Premiação Anual Tech Summit (30 unidades)',
-      'Troféu facetado em PLA Seda Dourado Champagne com base preta pesada e plaqueta com nome individual de cada premiado.',
-      'lote_corporativo', 'PLA', 'Ouro Champagne Seda', '95 x 95 x 240 mm', 30, '30/11/2026',
-      'trofeu-tech-summit-2026.3mf', 8192000, '2c26b46b68ffc68ff99b453c1d30413413422d706483bfa0f98a5e886266e7ae',
-      '/private-storage/quotes/ORC-2026-2003/trofeu-tech-summit-2026.3mf', 'approved', 5400, 4800,
-      285000, 6, '2026-11-18', 'Orçamento aprovado pelo cliente; aguardando compensação do faturamento B2B.'
-    )
-    ON CONFLICT (id) DO NOTHING`
-  );
 
-  await db.query(
-    `INSERT INTO custom_quote_revisions (id, quote_id, revision_number, author_role, author_name, message, proposed_price_cents, proposed_days)
-     VALUES
-     ('qrev-01', 'quo-2001', 1, 'client', 'Mariana Costa', 'Enviei o STL na versão 58mm. Gostaria que suportasse lavagem em água corrente.', NULL, NULL),
-     ('qrev-02', 'quo-2001', 2, 'admin', 'Rodrigo Souza (Engenharia RBS)', 'Analisamos seu arquivo! Recomendamos PETG Carbon Tech com 4 perímetros para impermeabilidade total e alta rigidez. Segue proposta formal pronta para aprovação online.', 16800, 3)
-     ON CONFLICT (id) DO NOTHING`
-  );
 
-  // 8. Financial Accounts, Entries (Separating Cash vs. Accrual & Asset Purchase vs. COGS Consumption!)
+  // 6. Financial Accounts (Clean operational accounts with initial 0 balance)
   await db.query(
     `INSERT INTO financial_accounts (id, name, account_type, institution, balance_cents)
      VALUES
-     ('acc-bank', 'Conta Empresarial Principal (Inter / Itaú PJ)', 'bank', 'Banco Inter PJ', 485200),
-     ('acc-mp', 'Conta Digital Mercado Pago (Gateway)', 'gateway', 'Mercado Pago', 74159),
-     ('acc-cash', 'Caixa Operacional Estúdio RBS', 'cash', 'Caixa Interno', 35000)
+     ('acc-bank', 'Conta Empresarial Principal (Inter / Itaú PJ)', 'bank', 'Banco Inter PJ', 0),
+     ('acc-mp', 'Conta Digital Mercado Pago (Gateway)', 'gateway', 'Mercado Pago', 0),
+     ('acc-cash', 'Caixa Operacional Estúdio RBS', 'cash', 'Caixa Interno', 0)
      ON CONFLICT (id) DO NOTHING`
   );
 
-  const financialEntries = [
-    // Receivables from orders
-    ['fin-rec-1001', 'REC-2026-1001', 'receivable', 'product_sale', 'gross_revenue', 'Pedido RBS-2026-1001 — Mariana Costa (Seleção Parcial)', 'Mariana Costa', 'order', 'ord-1001', '2026-10-28', '2026-10-28', 23546, 23546, 1175, 1215, 22331, 'reconciled', 'acc-mp'],
-    ['fin-rec-1002', 'REC-2026-1002', 'receivable', 'product_sale', 'gross_revenue', 'Pedido RBS-2026-1002 — Rafael Albuquerque (Luminária Lua)', 'Rafael Albuquerque', 'order', 'ord-1002', '2026-10-29', '2026-10-29', 20680, 20680, 1032, 1032, 19648, 'paid', 'acc-mp'],
-    ['fin-rec-1003', 'REC-2026-1003', 'receivable', 'b2b_sale', 'gross_revenue', 'Pedido RBS-2026-1003 — Clínica Odonto Prime (Lote 25 Chaveiros NFC)', 'Clínica Odonto Prime LTDA', 'order', 'ord-1003', '2026-10-30', '2026-10-30', 32480, 32480, 322, 322, 32158, 'paid', 'acc-mp'],
-    ['fin-rec-1004', 'REC-2026-1004', 'receivable', 'product_sale', 'gross_revenue', 'Pedido RBS-2026-1004 — Fernanda Lemos (Aguardando Pix)', 'Fernanda Lemos', 'order', 'ord-1004', '2026-10-31', '2026-11-01', 13780, 0, 136, null, 13644, 'pending', 'acc-mp'],
-
-    // Filament Purchase = Inventory Asset Purchase + Cash Outflow (NOT double-counted as DRE COGS!)
-    ['fin-pay-001', 'PAY-2026-001', 'payable', 'raw_material_purchase', 'inventory_asset_purchase', 'Compra 5kg Filamento PLA Seda Terracota (Entrada em Estoque de Insumos)', '3D Prime Filamentos Brasil', 'supply_purchase', 'sup-pla-terracota', '2026-10-20', '2026-10-25', 60000, 60000, 0, 0, 60000, 'paid', 'acc-bank'],
-
-    // COGS = Actual consumption of filament + packaging on produced orders (Accrual basis / Competência)
-    ['fin-cogs-1001', 'CMV-2026-1001', 'payable', 'raw_material_purchase', 'cogs_supply_consumed', 'CMV Insumos Consumidos (455g Filamento + Embalagem) — Pedido RBS-2026-1001', 'Consumo Interno Estoque 3D', 'production_job', 'job-1001', '2026-10-28', '2026-10-28', 6970, 6970, 0, 0, 6970, 'paid', 'acc-cash'],
-    ['fin-cogs-1002', 'CMV-2026-1002', 'payable', 'raw_material_purchase', 'cogs_supply_consumed', 'CMV Insumos Consumidos (280g + 42g Perda Reimpressão) — Pedido RBS-2026-1002', 'Consumo Interno Estoque 3D', 'production_job', 'job-1002', '2026-10-29', '2026-10-29', 5862, 5862, 0, 0, 5862, 'paid', 'acc-cash'],
-
-    // Partner commission payable
-    ['fin-pay-comm-01', 'PAY-COM-1001', 'payable', 'partner_commission', 'partner_commission', 'Comissão Parceiro 15% (Cupom PARCEIRO10 — Pedido RBS-2026-1001)', 'Camila Design & Decor', 'partner_commission', 'ord-1001', '2026-10-28', '2026-11-10', 3203, 0, 0, 0, 3203, 'pending', 'acc-bank'],
-
-    // Operating expenses (Energy & Maintenance)
-    ['fin-pay-energy', 'PAY-ENE-1026', 'payable', 'energy_utility', 'operating_expense', 'Fatura Energia Elétrica Fazenda de Impressoras 3D (Outubro)', 'Enel Distribuição RJ', 'manual', 'ENE-2026-10', '2026-10-25', '2026-11-05', 38900, 0, 0, 0, 38900, 'pending', 'acc-bank'],
-    ['fin-pay-shipping', 'PAY-FRT-1001', 'payable', 'shipping_cost', 'shipping_expense', 'Etiqueta SEDEX Melhor Envio — Pedido RBS-2026-1001', 'Melhor Envio / Correios', 'order', 'ord-1001', '2026-10-28', '2026-10-28', 1940, 1940, 0, 0, 1940, 'paid', 'acc-mp'],
-  ];
-
-  for (const fe of financialEntries) {
-    await db.query(
-      `INSERT INTO financial_entries (
-        id, entry_code, direction, category_code, accounting_class, description, counterparty_name,
-        reference_type, reference_id, competence_date, due_date,
-        gross_amount_cents, paid_amount_cents, fee_estimated_cents, fee_actual_cents, net_amount_cents,
-        status, account_id
-      ) VALUES ($1,$2,$3,$4,$5,$6,$7,$8,$9,$10,$11,$12,$13,$14,$15,$16,$17,$18) ON CONFLICT (id) DO NOTHING`,
-      fe
-    );
-  }
-
-  await db.query(
-    `INSERT INTO financial_reconciliations (
-      id, entry_id, order_id, gateway_name, expected_gross_cents, expected_fee_cents, actual_fee_cents, fee_divergence_cents, net_settled_cents, reconciled_by, notes
-    ) VALUES (
-      'rec-log-01', 'fin-rec-1001', 'ord-1001', 'Mercado Pago', 23546, 1175, 1215, 40, 22331, 'Rodrigo Souza (Admin RBS)',
-      'Divergência de R$ 0,40 identificada na tarifa de liquidação instantânea do gateway e conciliada no razão financeiro.'
-    ) ON CONFLICT (id) DO NOTHING`
-  );
-
-  await db.query(
-    `INSERT INTO partner_commissions (
-      id, partner_id, order_id, origin_type, calculation_base_cents, commission_rate_pct, commission_amount_cents, status, financial_entry_id
-    ) VALUES (
-      'pcom-01', 'prt-01', 'ord-1001', 'coupon', 21356, 15.00, 3203, 'approved', 'fin-pay-comm-01'
-    ) ON CONFLICT (id) DO NOTHING`
-  );
-
-  // 9. Pricing Presets & Simulations (including the exact mathematical R$ 49,24 audit benchmark!)
+  // 7. Pricing Presets (Studio Parameters Bambu Lab X1C / P1S)
   await db.query(
     `INSERT INTO pricing_presets (
       id, name, filament_cost_per_kg_cents, kwh_rate_cents, printer_power_watts,
@@ -980,30 +624,7 @@ export async function seedDatabase(db: DatabaseAdapter): Promise<void> {
     ) ON CONFLICT (id) DO NOTHING`
   );
 
-  await db.query(
-    `INSERT INTO pricing_simulations (
-      id, product_id, simulation_name, channel, lot_quantity,
-      part_grams, support_purge_grams, filament_cost_per_kg_cents, print_minutes, post_process_minutes,
-      packaging_cents, extra_inputs_cents, energy_cost_cents, depreciation_cost_cents, labor_cost_cents,
-      failure_rate_pct, unit_direct_cost_cents, fixed_fee_cents, variable_fee_pct, target_margin_pct,
-      suggested_unit_price_cents, suggested_lot_price_cents, net_unit_profit_cents, real_margin_pct, applied_to_product
-    ) VALUES
-    (
-      'sim-benchmark-4924', 'prod-suporte-headset', 'Cenário Referência Auditoria (Custo R$ 30 + Taxa R$ 2 + 10% + Margem 25%)',
-      'loja_propria_cartao', 1, 160, 15, 11000, 150, 10,
-      350, 0, 83, 355, 583, 5.00, 3000, 200, 10.00, 25.00,
-      4924, 4924, 1232, 25.02, false
-    ),
-    (
-      'sim-vaso-voronoi', 'prod-vaso-voronoi', 'Precificação Oficial Vaso Voronoi Orgânico (Loja Própria)',
-      'loja_propria_pix', 1, 195, 20, 12000, 245, 15,
-      350, 220, 136, 580, 875, 5.00, 3850, 150, 4.99, 45.00,
-      12990, 12990, 8342, 64.22, true
-    )
-    ON CONFLICT (id) DO NOTHING`
-  );
-
-  // 10. Promotions & Banners
+  // 8. Promotions & Banners
   await db.query(
     `INSERT INTO promotions (
       id, code, name, promotion_type, discount_value, min_order_cents, min_quantity,
@@ -1067,75 +688,7 @@ export async function seedDatabase(db: DatabaseAdapter): Promise<void> {
      ON CONFLICT (id) DO NOTHING`
   );
 
-  // 12. Interest Alerts & Commercial Intelligence Observable Events
-  await db.query(
-    `INSERT INTO interest_alerts (
-      id, product_id, variation_id, user_id, visitor_name, visitor_email, visitor_whatsapp,
-      alert_type, target_price_cents, channel, opt_in_confirmed, unsubscribe_token, status
-    ) VALUES
-    ('alrt-01', 'prod-escultura-resina', 'var-resina-cinza', 'usr-customer', 'Mariana Costa', 'cliente@rbscriacao.com', '(11) 98765-4321', 'price_drop', 21990, 'both', true, 'unsub-tok-001', 'active'),
-    ('alrt-02', 'prod-dragao-articulado', 'var-dragao-cobre', NULL, 'Bruno Azevedo', 'bruno.azevedo@email.com', '(21) 99441-1020', 'restock', NULL, 'whatsapp', true, 'unsub-tok-002', 'active'),
-    ('alrt-03', 'prod-vaso-voronoi', 'var-voronoi-champagne', NULL, 'Patrícia Vieira', 'patricia.vieira@arquitetura.com', '(11) 98112-3344', 'variation_return', 14990, 'email', true, 'unsub-tok-003', 'notified')
-    ON CONFLICT (id) DO NOTHING`
-  );
-
-  // Seed observable commercial events for funnel analytics & opportunities
-  const eventSeeds: Array<[string, string, string, string | null, string | null, string]> = [
-    // Product views, wishlist adds, cart adds, selective checkout leaves, purchases
-    ['evt-01', 'product_view', 'sess-vis-01', 'prod-vaso-voronoi', null, 'instagram'],
-    ['evt-02', 'product_view', 'sess-vis-02', 'prod-vaso-voronoi', null, 'organico'],
-    ['evt-03', 'product_view', 'sess-vis-03', 'prod-vaso-voronoi', null, 'direto'],
-    ['evt-04', 'wishlist_add', 'sess-vis-01', 'prod-vaso-voronoi', null, 'instagram'],
-    ['evt-05', 'cart_add', 'sess-vis-01', 'prod-vaso-voronoi', null, 'instagram'],
-    ['evt-06', 'checkout_selective_confirm', 'sess-vis-01', 'prod-vaso-voronoi', 'ord-1001', 'instagram'],
-    ['evt-07', 'payment_success', 'sess-vis-01', 'prod-vaso-voronoi', 'ord-1001', 'instagram'],
-
-    // Escultura Resina: high views & wishlist & cart adds, left unselected in partial checkout (Price sensitivity signal!)
-    ['evt-08', 'product_view', 'sess-vis-04', 'prod-escultura-resina', null, 'instagram'],
-    ['evt-09', 'product_view', 'sess-vis-05', 'prod-escultura-resina', null, 'organico'],
-    ['evt-10', 'product_view', 'sess-vis-06', 'prod-escultura-resina', null, 'direto'],
-    ['evt-11', 'wishlist_add', 'sess-vis-04', 'prod-escultura-resina', null, 'instagram'],
-    ['evt-12', 'wishlist_add', 'sess-vis-05', 'prod-escultura-resina', null, 'organico'],
-    ['evt-13', 'cart_add', 'sess-vis-04', 'prod-escultura-resina', null, 'instagram'],
-    ['evt-14', 'cart_save_for_later', 'sess-vis-04', 'prod-escultura-resina', null, 'instagram'],
-    ['evt-15', 'cart_select_toggle', 'sess-vis-01', 'prod-escultura-resina', null, 'instagram'],
-
-    // Luminaria Lua
-    ['evt-16', 'product_view', 'sess-vis-07', 'prod-luminaria-lua', null, 'instagram'],
-    ['evt-17', 'wishlist_add', 'sess-vis-07', 'prod-luminaria-lua', null, 'instagram'],
-    ['evt-18', 'cart_add', 'sess-vis-07', 'prod-luminaria-lua', null, 'instagram'],
-    ['evt-19', 'payment_success', 'sess-vis-07', 'prod-luminaria-lua', 'ord-1002', 'instagram'],
-
-    // Chaveiro NFC B2B
-    ['evt-20', 'product_view', 'sess-vis-08', 'prod-chaveiro-nfc-lote', null, 'organico'],
-    ['evt-21', 'cart_add', 'sess-vis-08', 'prod-chaveiro-nfc-lote', null, 'organico'],
-    ['evt-22', 'payment_success', 'sess-vis-08', 'prod-chaveiro-nfc-lote', 'ord-1003', 'organico'],
-
-    // Search queries without result or high demand
-    ['evt-23', 'search_query', 'sess-vis-09', null, null, 'suporte alexa echo dot'],
-    ['evt-24', 'search_query', 'sess-vis-10', null, null, 'vaso voronoi terracota'],
-    ['evt-25', 'search_query', 'sess-vis-11', null, null, 'trofeu corporativo 3d'],
-  ];
-
-  for (const [id, evtName, sess, prodId, ordId, extra] of eventSeeds) {
-    const isSearch = evtName === 'search_query';
-    await db.query(
-      `INSERT INTO commercial_events (id, event_name, session_key, product_id, order_id, search_term, channel_source, metadata_json)
-       VALUES ($1,$2,$3,$4,$5,$6,$7,$8) ON CONFLICT (id) DO NOTHING`,
-      [
-        id,
-        evtName,
-        sess,
-        prodId,
-        ordId,
-        isSearch ? extra : null,
-        isSearch ? 'busca_interna' : extra,
-        JSON.stringify({ selected: evtName !== 'cart_select_toggle' }),
-      ]
-    );
-  }
-
-  // 13. Store Settings
+  // 10. Store Settings
   const settings: Array<[string, Record<string, unknown>]> = [
     ['brand', {
       name: 'RBS Criação',

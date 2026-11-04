@@ -141,7 +141,7 @@ export default async function MinhaContaPage() {
     quoted_price_cents: number | null;
   }>(
     `SELECT * FROM custom_quotes 
-     WHERE user_id = $1 OR guest_email = $2 
+     WHERE user_id = $1 OR client_email = $2 
      ORDER BY created_at DESC LIMIT 10`,
     [session.userId, session.email]
   );
