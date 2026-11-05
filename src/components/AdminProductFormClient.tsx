@@ -20,6 +20,7 @@ import {
   ArrowUp,
   DollarSign,
   Package,
+  Film,
 } from 'lucide-react';
 import { formatBRLFromCents } from '@/lib/format';
 
@@ -83,6 +84,7 @@ export function AdminProductFormClient({ initialProducts = [], categories = [] }
   const [images, setImages] = useState<string[]>([]);
   const [manualImageUrl, setManualImageUrl] = useState('');
   const [isUploading, setIsUploading] = useState(false);
+  const [isDragging, setIsDragging] = useState(false);
 
   // Feedback and UI state
   const [feedback, setFeedback] = useState<{ type: 'success' | 'error'; message: string } | null>(null);
@@ -150,17 +152,18 @@ export function AdminProductFormClient({ initialProducts = [], categories = [] }
     formRef.current?.scrollIntoView({ behavior: 'smooth', block: 'start' });
   };
 
-  // Image Upload handler
-  const handleFileUpload = async (e: React.ChangeEvent<HTMLInputElement>) => {
-    const file = e.target.files?.[0];
-    if (!file) return;
+  // Multi-file and video/GIF upload handler
+  const uploadFiles = async (files: File[]) => {
+    if (!files || files.length === 0) return;
 
     setIsUploading(true);
     setFeedback(null);
 
     try {
       const formData = new FormData();
-      formData.append('file', file);
+      for (const file of files) {
+        formData.append('files', file);
+      }
 
       const res = await fetch('/api/admin/upload-image', {
         method: 'POST',
@@ -169,19 +172,58 @@ export function AdminProductFormClient({ initialProducts = [], categories = [] }
 
       const data = await res.json();
       if (!res.ok) {
-        throw new Error(data.error || 'Erro no envio da imagem.');
+        throw new Error(data.error || 'Erro no envio dos arquivos.');
       }
 
-      setImages((prev) => [...prev, data.url]);
-      setFeedback({ type: 'success', message: 'Foto enviada com sucesso!' });
+      const newUrls: string[] = Array.isArray(data.urls)
+        ? data.urls
+        : data.url
+        ? [data.url]
+        : [];
+
+      setImages((prev) => [...prev, ...newUrls]);
+      setFeedback({
+        type: 'success',
+        message: `${newUrls.length} ${
+          newUrls.length === 1 ? 'mídia adicionada' : 'mídias adicionadas'
+        } à galeria com sucesso!`,
+      });
     } catch (err) {
       setFeedback({
         type: 'error',
-        message: err instanceof Error ? err.message : 'Falha ao fazer upload da imagem.',
+        message: err instanceof Error ? err.message : 'Falha ao fazer upload da mídia.',
       });
     } finally {
       setIsUploading(false);
       if (fileInputRef.current) fileInputRef.current.value = '';
+    }
+  };
+
+  const handleFileInputChange = (e: React.ChangeEvent<HTMLInputElement>) => {
+    const fileList = e.target.files;
+    if (!fileList || fileList.length === 0) return;
+    uploadFiles(Array.from(fileList));
+  };
+
+  const handleDragOver = (e: React.DragEvent) => {
+    e.preventDefault();
+    e.stopPropagation();
+    setIsDragging(true);
+  };
+
+  const handleDragLeave = (e: React.DragEvent) => {
+    e.preventDefault();
+    e.stopPropagation();
+    setIsDragging(false);
+  };
+
+  const handleDrop = (e: React.DragEvent) => {
+    e.preventDefault();
+    e.stopPropagation();
+    setIsDragging(false);
+    const files = Array.from(e.dataTransfer.files || []);
+    if (files.length > 0) {
+      uploadFiles(files);
     }
   };
 
@@ -492,125 +534,177 @@ export function AdminProductFormClient({ initialProducts = [], categories = [] }
             </div>
           </div>
 
-          {/* Photo and Gallery Management */}
+          {/* Photo, GIF and Video Gallery Management */}
           <div className="rounded-2xl border border-[#E6E2DA] bg-white p-4 sm:p-5">
             <div className="flex flex-wrap items-center justify-between gap-2 mb-3">
               <div className="flex items-center gap-2 text-xs font-bold text-[#563487] uppercase tracking-wider">
                 <ImageIcon className="h-4 w-4" />
-                Fotografias e Galeria do Produto ({images.length} fotos)
+                <span>Mídias, Fotos, GIFs & Vídeos Curtos ({images.length} {images.length === 1 ? 'item' : 'itens'})</span>
               </div>
               <span className="text-[11px] text-[#5A5863]">
-                A primeira foto da lista é automaticamente a <strong>Capa Principal</strong> na vitrine.
+                A primeira mídia da lista é automaticamente a <strong>Capa Principal</strong> na vitrine.
               </span>
             </div>
 
-            {/* Upload Buttons and URL input */}
-            <div className="grid grid-cols-1 gap-3 sm:grid-cols-2">
-              {/* File Upload Button */}
-              <div>
-                <label className="block text-xs font-bold text-[#24232A] mb-1">
-                  1. Enviar Foto do seu Computador (Upload)
-                </label>
-                <div className="flex items-center gap-2">
+            {/* Drag & Drop Upload Zone + Multi-file selection */}
+            <div
+              onDragOver={handleDragOver}
+              onDragLeave={handleDragLeave}
+              onDrop={handleDrop}
+              className={`rounded-2xl border-2 border-dashed p-5 text-center transition ${
+                isDragging
+                  ? 'border-[#563487] bg-[#F3EFFA] scale-[1.01]'
+                  : 'border-[#D5CFC4] bg-[#FCFBF8] hover:border-[#563487]'
+              }`}
+            >
+              <div className="mx-auto flex h-10 w-10 items-center justify-center rounded-2xl bg-[#563487]/10 text-[#563487]">
+                <UploadCloud className="h-5 w-5" />
+              </div>
+              <p className="mt-2 text-xs font-bold text-[#24232A]">
+                Arraste e solte fotos, GIFs ou vídeos curtos aqui, ou clique abaixo
+              </p>
+              <p className="mt-0.5 text-[11px] text-[#5A5863]">
+                <strong>Seleção múltipla ativada:</strong> você pode selecionar vários arquivos de uma vez segurando <kbd className="rounded bg-white px-1 py-0.5 border border-[#D5CFC4] font-mono text-[10px]">Ctrl</kbd> ou <kbd className="rounded bg-white px-1 py-0.5 border border-[#D5CFC4] font-mono text-[10px]">Shift</kbd>.
+              </p>
+
+              <div className="mt-3 flex flex-wrap items-center justify-center gap-3">
+                <label className="cursor-pointer inline-flex items-center gap-2 rounded-xl bg-[#563487] px-4 py-2 text-xs font-bold text-white shadow-xs hover:bg-[#462970] transition">
+                  <PlusCircle className="h-4 w-4" />
+                  <span>Escolher Arquivos do Computador</span>
                   <input
                     ref={fileInputRef}
                     type="file"
-                    accept="image/png,image/jpeg,image/webp,image/svg+xml"
-                    onChange={handleFileUpload}
+                    multiple
+                    accept="image/png,image/jpeg,image/webp,image/gif,image/svg+xml,video/mp4,video/webm,video/quicktime"
+                    onChange={handleFileInputChange}
                     disabled={isUploading}
-                    className="block w-full text-xs text-[#5A5863] file:mr-3 file:rounded-xl file:border-0 file:bg-[#563487] file:px-4 file:py-2 file:text-xs file:font-bold file:text-white hover:file:bg-[#462970] file:cursor-pointer"
+                    className="hidden"
                   />
-                  {isUploading && (
-                    <span className="text-xs font-semibold text-[#563487] animate-pulse">
-                      Enviando...
-                    </span>
-                  )}
-                </div>
-                <span className="text-[10px] text-[#5A5863]">PNG, JPG ou WebP de até 12MB.</span>
-              </div>
-
-              {/* URL Input */}
-              <div>
-                <label className="block text-xs font-bold text-[#24232A] mb-1">
-                  2. Ou Adicionar URL de Imagem
                 </label>
-                <div className="flex items-center gap-2">
-                  <input
-                    type="text"
-                    value={manualImageUrl}
-                    onChange={(e) => setManualImageUrl(e.target.value)}
-                    placeholder="/products/real/... ou https://..."
-                    className="flex-1 rounded-xl border border-[#D5CFC4] bg-[#FCFBF8] px-3 py-2 text-xs font-medium text-[#24232A] focus:border-[#563487] focus:outline-none"
-                  />
-                  <button
-                    type="button"
-                    onClick={handleAddManualImage}
-                    className="rounded-xl border border-[#563487] bg-white px-3.5 py-2 text-xs font-bold text-[#563487] hover:bg-[#F3EFFA]"
-                  >
-                    Adicionar
-                  </button>
-                </div>
+
+                {isUploading && (
+                  <span className="text-xs font-semibold text-[#563487] animate-pulse">
+                    Enviando mídias para o servidor...
+                  </span>
+                )}
+              </div>
+              <p className="mt-2 text-[10px] text-[#6E6B78]">
+                Formatos aceitos: <strong>PNG, JPG, WebP, GIFs animados e vídeos MP4/WebM</strong> (até 35MB por arquivo).
+              </p>
+            </div>
+
+            {/* Manual URL Input alternative */}
+            <div className="mt-3 rounded-xl border border-[#E6E2DA] bg-[#FBF9F5] p-3">
+              <label className="block text-[11px] font-bold text-[#24232A] mb-1">
+                Ou cole link direto de imagem, GIF ou vídeo:
+              </label>
+              <div className="flex items-center gap-2">
+                <input
+                  type="text"
+                  value={manualImageUrl}
+                  onChange={(e) => setManualImageUrl(e.target.value)}
+                  placeholder="/products/real/... ou https://... (aceita imagem, .gif ou .mp4)"
+                  className="flex-1 rounded-xl border border-[#D5CFC4] bg-white px-3 py-1.5 text-xs font-medium text-[#24232A] focus:border-[#563487] focus:outline-none"
+                />
+                <button
+                  type="button"
+                  onClick={handleAddManualImage}
+                  className="rounded-xl border border-[#563487] bg-white px-3.5 py-1.5 text-xs font-bold text-[#563487] hover:bg-[#F3EFFA] transition"
+                >
+                  Adicionar Link
+                </button>
               </div>
             </div>
 
-            {/* Images Visual Grid */}
+            {/* Images & Media Visual Grid */}
             {images.length > 0 ? (
               <div className="mt-4 grid grid-cols-2 gap-3 sm:grid-cols-4 md:grid-cols-6">
-                {images.map((imgUrl, idx) => (
-                  <div
-                    key={`${imgUrl}-${idx}`}
-                    className="group relative overflow-hidden rounded-2xl border border-[#E6E2DA] bg-[#FCFBF8] p-1.5 transition hover:border-[#563487]"
-                  >
-                    <div className="relative aspect-square w-full overflow-hidden rounded-xl bg-white">
-                      {/* eslint-disable-next-line @next/next/no-img-element */}
-                      <img
-                        src={imgUrl}
-                        alt={`Foto ${idx + 1}`}
-                        className="h-full w-full object-cover"
-                      />
-                      {idx === 0 && (
-                        <span className="absolute top-1 left-1 flex items-center gap-1 rounded-md bg-[#563487] px-1.5 py-0.5 text-[9px] font-extrabold text-white shadow-sm">
-                          <Star className="h-2.5 w-2.5 fill-amber-300 text-amber-300" />
-                          Capa
-                        </span>
-                      )}
-                    </div>
+                {images.map((imgUrl, idx) => {
+                  const isVideo = /\.(mp4|webm|mov|ogg)(\?.*)?$/i.test(imgUrl);
+                  const isGif = /\.gif(\?.*)?$/i.test(imgUrl);
 
-                    <div className="mt-1.5 flex items-center justify-between gap-1">
-                      {idx > 0 ? (
+                  return (
+                    <div
+                      key={`${imgUrl}-${idx}`}
+                      className="group relative overflow-hidden rounded-2xl border border-[#E6E2DA] bg-[#FCFBF8] p-1.5 transition hover:border-[#563487]"
+                    >
+                      <div className="relative aspect-square w-full overflow-hidden rounded-xl bg-black/5">
+                        {isVideo ? (
+                          <video
+                            src={imgUrl}
+                            autoPlay
+                            loop
+                            muted
+                            playsInline
+                            className="h-full w-full object-cover bg-black"
+                          />
+                        ) : (
+                          /* eslint-disable-next-line @next/next/no-img-element */
+                          <img
+                            src={imgUrl}
+                            alt={`Mídia ${idx + 1}`}
+                            className="h-full w-full object-cover"
+                          />
+                        )}
+
+                        {/* Badges */}
+                        {idx === 0 && (
+                          <span className="absolute top-1 left-1 flex items-center gap-1 rounded-md bg-[#563487] px-1.5 py-0.5 text-[9px] font-extrabold text-white shadow-sm">
+                            <Star className="h-2.5 w-2.5 fill-amber-300 text-amber-300" />
+                            Capa
+                          </span>
+                        )}
+
+                        <span className="absolute bottom-1 left-1 flex items-center gap-1 rounded bg-[#24232A]/85 px-1.5 py-0.5 text-[9px] font-extrabold text-white backdrop-blur-xs">
+                          {isVideo ? (
+                            <>
+                              <Film className="h-2.5 w-2.5 text-purple-300" />
+                              <span>Vídeo</span>
+                            </>
+                          ) : isGif ? (
+                            <span className="text-sky-300">GIF</span>
+                          ) : (
+                            <span>Foto</span>
+                          )}
+                        </span>
+                      </div>
+
+                      <div className="mt-1.5 flex items-center justify-between gap-1">
+                        {idx > 0 ? (
+                          <button
+                            type="button"
+                            onClick={() => handleMakeCover(idx)}
+                            title="Tornar capa principal da vitrine"
+                            className="flex items-center gap-0.5 text-[10px] font-bold text-[#563487] hover:underline"
+                          >
+                            <ArrowUp className="h-3 w-3" />
+                            Capa
+                          </button>
+                        ) : (
+                          <span className="text-[10px] font-bold text-[#563487]">Capa atual</span>
+                        )}
+
                         <button
                           type="button"
-                          onClick={() => handleMakeCover(idx)}
-                          title="Tornar capa principal"
-                          className="flex items-center gap-0.5 text-[10px] font-bold text-[#563487] hover:underline"
+                          onClick={() => handleRemoveImage(idx)}
+                          title="Remover mídia da galeria"
+                          className="rounded-lg p-1 text-[#5A5863] hover:bg-red-50 hover:text-red-600 transition"
                         >
-                          <ArrowUp className="h-3 w-3" />
-                          Capa
+                          <Trash2 className="h-3.5 w-3.5" />
                         </button>
-                      ) : (
-                        <span className="text-[10px] font-bold text-[#563487]">Capa atual</span>
-                      )}
-
-                      <button
-                        type="button"
-                        onClick={() => handleRemoveImage(idx)}
-                        title="Remover foto"
-                        className="rounded-lg p-1 text-[#5A5863] hover:bg-red-50 hover:text-red-600"
-                      >
-                        <Trash2 className="h-3.5 w-3.5" />
-                      </button>
+                      </div>
                     </div>
-                  </div>
-                ))}
+                  );
+                })}
               </div>
             ) : (
               <div className="mt-4 rounded-xl border border-dashed border-amber-300 bg-amber-50/60 p-4 text-center">
                 <ImageOff className="mx-auto h-6 w-6 text-amber-800/80 mb-1" />
                 <p className="text-xs font-semibold text-amber-950">
-                  Nenhuma fotografia adicionada ainda.
+                  Nenhuma fotografia ou mídia adicionada ainda.
                 </p>
                 <p className="text-[11px] text-amber-900/80">
-                  O produto exibirá o aviso &ldquo;Imagem em atualização&rdquo; na loja até receber ao menos 1 foto.
+                  O produto exibirá o aviso &ldquo;Imagem em atualização&rdquo; na loja até receber ao menos 1 foto, GIF ou vídeo.
                 </p>
               </div>
             )}

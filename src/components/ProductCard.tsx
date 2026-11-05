@@ -110,12 +110,23 @@ export function ProductCard({ product }: { product: ProductCardProps }) {
             aria-label={`Ver detalhes de ${product.name}`}
           >
             {coverImage ? (
-              <img
-                src={coverImage}
-                alt={product.name}
-                loading="lazy"
-                className="h-full w-full object-cover object-center transition duration-500 group-hover:scale-[1.03]"
-              />
+              /\.(mp4|webm|mov|ogg)(\?.*)?$/i.test(coverImage) ? (
+                <video
+                  src={coverImage}
+                  autoPlay
+                  loop
+                  muted
+                  playsInline
+                  className="h-full w-full object-cover object-center transition duration-500 group-hover:scale-[1.03]"
+                />
+              ) : (
+                <img
+                  src={coverImage}
+                  alt={product.name}
+                  loading="lazy"
+                  className="h-full w-full object-cover object-center transition duration-500 group-hover:scale-[1.03]"
+                />
+              )
             ) : (
               <div className="flex h-full w-full flex-col items-center justify-center p-6 text-center text-[#6E6B78]">
                 <ImageOff className="mb-2 h-6 w-6 stroke-[1.5] text-[#8A8694]" />

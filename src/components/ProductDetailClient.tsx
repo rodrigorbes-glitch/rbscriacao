@@ -14,6 +14,7 @@ import {
   ImageOff,
   ChevronDown,
   Rotate3d,
+  Play,
 } from 'lucide-react';
 import { formatBRLFromCents } from '@/lib/format';
 import { getVisitorSessionKey } from './StoreHeader';
@@ -189,11 +190,23 @@ export function ProductDetailClient({
       <div className="space-y-4 lg:col-span-7">
         <div className="overflow-hidden rounded-2xl border border-[#E6E2DA] bg-[#F2EFE9]">
           {activeImage ? (
-            <img
-              src={activeImage}
-              alt={product.name}
-              className="aspect-square w-full object-cover object-center"
-            />
+            /\.(mp4|webm|mov|ogg)(\?.*)?$/i.test(activeImage) ? (
+              <video
+                src={activeImage}
+                controls
+                autoPlay
+                loop
+                muted
+                playsInline
+                className="aspect-square w-full object-cover object-center bg-black"
+              />
+            ) : (
+              <img
+                src={activeImage}
+                alt={product.name}
+                className="aspect-square w-full object-cover object-center"
+              />
+            )
           ) : (
             <div className="flex aspect-square w-full flex-col items-center justify-center p-8 text-center text-[#5A5863]">
               <ImageOff className="mb-3 h-8 w-8 stroke-[1.5] text-[#8A8694]" />
@@ -212,6 +225,7 @@ export function ProductDetailClient({
           <div className="grid grid-cols-3 gap-3">
             {images.map((imgUrl, idx) => {
               const isSelected = activeImage === imgUrl;
+              const isVideo = /\.(mp4|webm|mov|ogg)(\?.*)?$/i.test(imgUrl);
               return (
                 <button
                   key={idx}
@@ -223,15 +237,29 @@ export function ProductDetailClient({
                       : 'border-[#E6E2DA] hover:border-[#C5BEB2]'
                   }`}
                 >
-                  <div className="aspect-[4/3] overflow-hidden rounded-lg bg-[#F2EFE9]">
-                    <img
-                      src={imgUrl}
-                      alt={`${product.name} — ${imageLabels[idx] || `Foto ${idx + 1}`}`}
-                      className="h-full w-full object-cover"
-                    />
+                  <div className="aspect-[4/3] overflow-hidden rounded-lg bg-[#F2EFE9] relative">
+                    {isVideo ? (
+                      <>
+                        <video
+                          src={imgUrl}
+                          muted
+                          playsInline
+                          className="h-full w-full object-cover bg-black"
+                        />
+                        <div className="absolute inset-0 flex items-center justify-center bg-black/30">
+                          <Play className="h-5 w-5 text-white fill-white" />
+                        </div>
+                      </>
+                    ) : (
+                      <img
+                        src={imgUrl}
+                        alt={`${product.name} — ${imageLabels[idx] || `Foto ${idx + 1}`}`}
+                        className="h-full w-full object-cover"
+                      />
+                    )}
                   </div>
-                  <span className="mt-1.5 block px-1 text-xs font-medium text-[#24232A]">
-                    {imageLabels[idx] || `Ângulo ${idx + 1}`}
+                  <span className="mt-1.5 block px-1 text-xs font-medium text-[#24232A] truncate">
+                    {isVideo ? 'Vídeo / Demo' : imageLabels[idx] || `Foto ${idx + 1}`}
                   </span>
                 </button>
               );

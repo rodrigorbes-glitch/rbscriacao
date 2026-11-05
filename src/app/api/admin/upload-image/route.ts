@@ -1,14 +1,53 @@
 import { NextRequest, NextResponse } from 'next/server';
 import { cookies } from 'next/headers';
-import fs from 'fs';
 import path from 'path';
 import crypto from 'crypto';
 import { getDb } from '@/db';
 import { validateSessionFromCookie, SESSION_COOKIE_NAME } from '@/lib/auth';
 import { savePersistentUpload } from '@/lib/persistent-state';
 
-const ALLOWED_EXTENSIONS = new Set(['.png', '.jpg', '.jpeg', '.webp', '.svg']);
-const MAX_IMAGE_SIZE = 12 * 1024 * 1024; // 12MB
+const ALLOWED_EXTENSIONS = new Set([
+  '.png',
+  '.jpg',
+  '.jpeg',
+  '.webp',
+  '.svg',
+  '.gif',
+  '.mp4',
+  '.webm',
+  '.mov',
+]);
+
+const MAX_FILE_SIZE = 35 * 1024 * 1024; // 35MB para permitir fotos em alta resolução, GIFs animados e vídeos curtos
+
+function processFileBuffer(originalName: string, buffer: Buffer): { url: string; fileName: string } {
+  if (buffer.length > MAX_FILE_SIZE) {
+    throw new Error(`Arquivo "${originalName}" excede o tamanho máximo de 35MB.`);
+  }
+
+  const ext = path.extname(originalName).toLowerCase();
+  if (!ALLOWED_EXTENSIONS.has(ext)) {
+    throw new Error(
+      `Formato "${ext}" não suportado para "${originalName}". Formatos aceitos: PNG, JPG, WebP, GIF, SVG, MP4 ou WebM.`
+    );
+  }
+
+  const randomSuffix = crypto.randomBytes(6).toString('hex');
+  const safeBaseName = path
+    .basename(originalName, ext)
+    .toLowerCase()
+    .normalize('NFD')
+    .replace(/[\u0300-\u036f]/g, '')
+    .replace(/[^a-z0-9_-]/g, '-')
+    .slice(0, 30);
+  const finalFileName = `${safeBaseName}-${Date.now()}-${randomSuffix}${ext}`;
+
+  savePersistentUpload(finalFileName, buffer);
+  return {
+    url: `/products/uploads/${finalFileName}`,
+    fileName: finalFileName,
+  };
+}
 
 export async function POST(req: NextRequest) {
   try {
@@ -25,61 +64,51 @@ export async function POST(req: NextRequest) {
     }
 
     const contentType = req.headers.get('content-type') || '';
-    let buffer: Buffer;
-    let originalName = 'upload.png';
+    const uploadedUrls: string[] = [];
+    const uploadedFiles: string[] = [];
 
     if (contentType.includes('multipart/form-data')) {
       const formData = await req.formData();
-      const file = formData.get('file') as File | null;
-      if (!file) {
+      // Handle both multiple files ("files") and single file ("file")
+      const filesFromForm = [
+        ...formData.getAll('files'),
+        ...formData.getAll('file'),
+      ].filter((f): f is File => f instanceof File && f.size > 0);
+
+      if (filesFromForm.length === 0) {
         return NextResponse.json({ error: 'Nenhum arquivo enviado.' }, { status: 400 });
       }
-      originalName = file.name;
-      const arrayBuffer = await file.arrayBuffer();
-      buffer = Buffer.from(arrayBuffer);
+
+      for (const file of filesFromForm) {
+        const arrayBuffer = await file.arrayBuffer();
+        const buffer = Buffer.from(arrayBuffer);
+        const saved = processFileBuffer(file.name, buffer);
+        uploadedUrls.push(saved.url);
+        uploadedFiles.push(saved.fileName);
+      }
     } else {
       const body = await req.json();
       if (!body.fileBase64) {
         return NextResponse.json({ error: 'Dados da imagem não fornecidos.' }, { status: 400 });
       }
-      buffer = Buffer.from(body.fileBase64, 'base64');
-      if (body.fileName) originalName = body.fileName;
+      const buffer = Buffer.from(body.fileBase64, 'base64');
+      const originalName = body.fileName || 'upload.png';
+      const saved = processFileBuffer(originalName, buffer);
+      uploadedUrls.push(saved.url);
+      uploadedFiles.push(saved.fileName);
     }
 
-    if (buffer.length > MAX_IMAGE_SIZE) {
-      return NextResponse.json({ error: 'Arquivo excede o tamanho máximo de 12MB.' }, { status: 400 });
-    }
-
-    const ext = path.extname(originalName).toLowerCase();
-    if (!ALLOWED_EXTENSIONS.has(ext)) {
-      return NextResponse.json(
-        { error: 'Formato inválido. Use imagens PNG, JPG, JPEG ou WebP.' },
-        { status: 400 }
-      );
-    }
-
-    const randomSuffix = crypto.randomBytes(6).toString('hex');
-    const safeBaseName = path
-      .basename(originalName, ext)
-      .toLowerCase()
-      .normalize('NFD')
-      .replace(/[\u0300-\u036f]/g, '')
-      .replace(/[^a-z0-9_-]/g, '-')
-      .slice(0, 30);
-    const finalFileName = `${safeBaseName}-${Date.now()}-${randomSuffix}${ext}`;
-
-    savePersistentUpload(finalFileName, buffer);
-
-    const publicUrl = `/products/uploads/${finalFileName}`;
     return NextResponse.json({
       success: true,
-      url: publicUrl,
-      fileName: finalFileName,
+      url: uploadedUrls[0],
+      urls: uploadedUrls,
+      fileNames: uploadedFiles,
+      count: uploadedUrls.length,
     });
   } catch (err) {
     return NextResponse.json(
-      { error: err instanceof Error ? err.message : 'Falha no upload da foto.' },
-      { status: 500 }
+      { error: err instanceof Error ? err.message : 'Falha no upload do arquivo.' },
+      { status: 400 }
     );
   }
 }
