@@ -5,6 +5,7 @@ import path from 'path';
 import crypto from 'crypto';
 import { getDb } from '@/db';
 import { validateSessionFromCookie, SESSION_COOKIE_NAME } from '@/lib/auth';
+import { savePersistentUpload } from '@/lib/persistent-state';
 
 const ALLOWED_EXTENSIONS = new Set(['.png', '.jpg', '.jpeg', '.webp', '.svg']);
 const MAX_IMAGE_SIZE = 12 * 1024 * 1024; // 12MB
@@ -67,11 +68,7 @@ export async function POST(req: NextRequest) {
       .slice(0, 30);
     const finalFileName = `${safeBaseName}-${Date.now()}-${randomSuffix}${ext}`;
 
-    const uploadDir = path.join(process.cwd(), 'public', 'products', 'uploads');
-    fs.mkdirSync(uploadDir, { recursive: true });
-    const fullPath = path.join(uploadDir, finalFileName);
-
-    fs.writeFileSync(fullPath, buffer);
+    savePersistentUpload(finalFileName, buffer);
 
     const publicUrl = `/products/uploads/${finalFileName}`;
     return NextResponse.json({

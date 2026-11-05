@@ -3,6 +3,11 @@ import path from 'path';
 import { PGlite } from '@electric-sql/pglite';
 import { Pool } from 'pg';
 import { seedDatabase } from './seed';
+import {
+  getPersistentBaseDir,
+  syncUploadsToPublic,
+  restoreStateSnapshot,
+} from '@/lib/persistent-state';
 
 export interface DatabaseAdapter {
   query<T = Record<string, unknown>>(sql: string, params?: unknown[]): Promise<T[]>;
@@ -121,8 +126,10 @@ async function initDatabase(): Promise<DatabaseAdapter> {
     const pg = await PGlite.create();
     adapter = new PGliteAdapter(pg);
   } else {
-    const dataDir = path.join(process.cwd(), '.pgdata', 'rbs-v3-pg');
-    fs.mkdirSync(path.dirname(dataDir), { recursive: true });
+    const baseDir = getPersistentBaseDir();
+    const dataDir = path.join(baseDir, 'rbs-v3-pg');
+    fs.mkdirSync(baseDir, { recursive: true });
+    fs.mkdirSync(dataDir, { recursive: true });
     try {
       const pidFile = path.join(dataDir, 'postmaster.pid');
       if (fs.existsSync(pidFile)) {
@@ -134,12 +141,16 @@ async function initDatabase(): Promise<DatabaseAdapter> {
       }
       const pg = await PGlite.create(dataDir);
       adapter = new PGliteAdapter(pg);
-    } catch {
+    } catch (err) {
+      console.warn('[DB] Persistent PGlite fallback to memory:', err);
       // Fallback to in-memory PGlite if another build worker holds the directory lock
       const pg = await PGlite.create();
       adapter = new PGliteAdapter(pg);
     }
   }
+
+  // Restore uploaded product images to public directory if present in persistent storage
+  syncUploadsToPublic();
 
   const migrationsDir = path.join(process.cwd(), 'src', 'db', 'migrations');
   if (fs.existsSync(migrationsDir)) {
@@ -176,6 +187,7 @@ async function initDatabase(): Promise<DatabaseAdapter> {
   }
 
   await seedDatabase(adapter);
+  await restoreStateSnapshot(adapter);
   return adapter;
 }
 
@@ -198,5 +210,6 @@ export async function createIsolatedTestDb(): Promise<DatabaseAdapter> {
     }
   }
   await seedDatabase(adapter);
+  await restoreStateSnapshot(adapter);
   return adapter;
 }

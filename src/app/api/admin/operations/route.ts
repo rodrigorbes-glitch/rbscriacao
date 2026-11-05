@@ -8,6 +8,7 @@ import {
   recordProductionFailure,
   reconcileGatewayFee,
 } from '@/lib/operations';
+import { saveStateSnapshot } from '@/lib/persistent-state';
 
 export async function POST(req: NextRequest) {
   try {
@@ -503,6 +504,8 @@ export async function POST(req: NextRequest) {
           [`bal-exp-${id}`, id, stockQty]
         );
 
+        await saveStateSnapshot(db);
+
         return NextResponse.json({ success: true, productId: id });
       }
 
@@ -596,6 +599,8 @@ export async function POST(req: NextRequest) {
           }
         }
 
+        await saveStateSnapshot(db);
+
         return NextResponse.json({ success: true, productId });
       }
 
@@ -610,6 +615,8 @@ export async function POST(req: NextRequest) {
         await db.query(`DELETE FROM product_variations WHERE product_id = $1`, [productId]);
         await db.query(`DELETE FROM consignment_items WHERE product_id = $1`, [productId]);
         await db.query(`DELETE FROM products WHERE id = $1`, [productId]);
+
+        await saveStateSnapshot(db);
 
         return NextResponse.json({ success: true, productId });
       }

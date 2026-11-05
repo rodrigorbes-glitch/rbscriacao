@@ -1,6 +1,8 @@
 import { NextRequest, NextResponse } from 'next/server';
+import { cookies } from 'next/headers';
 import { getDb } from '@/db';
 import { validateSessionFromCookie, SESSION_COOKIE_NAME } from '@/lib/auth';
+import { saveStateSnapshot } from '@/lib/persistent-state';
 
 const DEFAULT_BRAND_SETTINGS = {
   name: 'RBS Criação',
@@ -13,6 +15,23 @@ const DEFAULT_BRAND_SETTINGS = {
   facebookUrl: 'https://facebook.com/rbscriacao',
   shippingText: 'Envio para todo o Brasil',
 };
+
+async function getSessionToken(req: NextRequest): Promise<string | undefined> {
+  let token = req.cookies.get(SESSION_COOKIE_NAME)?.value;
+  if (!token) {
+    try {
+      const cookieStore = await cookies();
+      token = cookieStore.get(SESSION_COOKIE_NAME)?.value;
+    } catch {}
+  }
+  if (!token) {
+    const authHeader = req.headers.get('authorization');
+    if (authHeader?.startsWith('Bearer ')) {
+      token = authHeader.slice(7);
+    }
+  }
+  return token;
+}
 
 export async function GET() {
   try {
@@ -44,8 +63,8 @@ export async function POST(req: NextRequest) {
   try {
     const db = await getDb();
 
-    // 1. Authenticate user from HttpOnly session cookie (must be admin)
-    const token = req.cookies.get(SESSION_COOKIE_NAME)?.value;
+    // 1. Authenticate user from HttpOnly session cookie, header or cookies()
+    const token = await getSessionToken(req);
     const session = await validateSessionFromCookie(db, token);
 
     if (!session || session.role !== 'admin') {
@@ -91,12 +110,24 @@ export async function POST(req: NextRequest) {
       [JSON.stringify(updatedBrand)]
     );
 
-    // Audit log
-    await db.query(
-      `INSERT INTO audit_logs (id, actor_user_id, actor_name, actor_role, action, entity_type, entity_id, after_json)
-       VALUES ($1, $2, $3, $4, 'update_settings', 'store_settings', 'brand', $5)`,
-      [`aud-${Date.now()}`, session.userId, session.name, session.role, JSON.stringify(updatedBrand)]
-    );
+    // Audit log (with both actor_user_id and user_id for full compatibility)
+    try {
+      await db.query(
+        `INSERT INTO audit_logs (id, actor_user_id, user_id, actor_name, actor_role, action, entity_type, entity_id, after_json)
+         VALUES ($1, $2, $2, $3, $4, 'update_settings', 'store_settings', 'brand', $5)`,
+        [`aud-${Date.now()}`, session.userId, session.name, session.role, JSON.stringify(updatedBrand)]
+      );
+    } catch {
+      // If user_id column is missing in legacy schema, fallback without it
+      await db.query(
+        `INSERT INTO audit_logs (id, actor_user_id, actor_name, actor_role, action, entity_type, entity_id, after_json)
+         VALUES ($1, $2, $3, $4, 'update_settings', 'store_settings', 'brand', $5)`,
+        [`aud-${Date.now()}`, session.userId, session.name, session.role, JSON.stringify(updatedBrand)]
+      );
+    }
+
+    // Persist snapshot to disk immediately so no server restart or redeploy can ever erase it
+    await saveStateSnapshot(db);
 
     return NextResponse.json({ success: true, brand: updatedBrand });
   } catch (err) {

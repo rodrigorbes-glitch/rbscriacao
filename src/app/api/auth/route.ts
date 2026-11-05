@@ -9,6 +9,7 @@ import {
   revokeSessionInDb,
   SESSION_COOKIE_NAME,
 } from '@/lib/auth';
+import { saveStateSnapshot } from '@/lib/persistent-state';
 
 async function getSessionToken(req: NextRequest): Promise<string | undefined> {
   let token = req.cookies.get(SESSION_COOKIE_NAME)?.value;
@@ -202,6 +203,8 @@ export async function POST(req: NextRequest) {
         ]
       );
 
+      await saveStateSnapshot(db);
+
       const response = NextResponse.json({
         success: true,
         message: 'Senha alterada com sucesso!',
@@ -275,6 +278,8 @@ export async function POST(req: NextRequest) {
           JSON.stringify({ targetEmail: target[0].email, targetName: target[0].name })
         ]
       );
+
+      await saveStateSnapshot(db);
 
       const response = NextResponse.json({
         success: true,
@@ -362,6 +367,8 @@ export async function POST(req: NextRequest) {
         ]
       );
 
+      await saveStateSnapshot(db);
+
       return NextResponse.json({
         success: true,
         message: `Usuário ${name} criado com sucesso!`,
@@ -433,6 +440,8 @@ export async function POST(req: NextRequest) {
           JSON.stringify({ name: target[0].name, email: target[0].email, role: target[0].role })
         ]
       );
+
+      await saveStateSnapshot(db);
 
       return NextResponse.json({
         success: true,
