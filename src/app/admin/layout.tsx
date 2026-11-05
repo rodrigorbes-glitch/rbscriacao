@@ -16,12 +16,12 @@ import {
   Menu,
   X,
   LogOut,
+  Package,
 } from 'lucide-react';
 
-// Simplified Navigation according to Directive 5:
-// Visão geral, Vendas, Produção e estoque, Financeiro, Marketing, Parceiros, Configurações e Ajuda.
 const ADMIN_NAV = [
   { href: '/admin', label: 'Visão Geral', icon: LayoutDashboard, exact: true },
+  { href: '/admin/produtos', label: 'Produtos & Mídias', icon: Package },
   { href: '/admin/pedidos', label: 'Vendas', icon: ShoppingBag },
   { href: '/admin/producao', label: 'Produção & Estoque', icon: Boxes },
   { href: '/admin/financeiro', label: 'Financeiro', icon: Wallet },
@@ -173,14 +173,13 @@ export default function AdminLayout({ children }: { children: React.ReactNode })
           </div>
 
           <div className="flex items-center gap-2">
-            <button
-              type="button"
-              onClick={handleLogout}
-              className="rounded-xl border border-rose-200 bg-rose-50 px-2.5 py-1 text-xs font-semibold text-rose-700 hover:bg-rose-100 transition cursor-pointer"
-              title="Sair do painel"
+            <Link
+              href="/admin/produtos"
+              className="rounded-xl bg-[#563487] px-3 py-1.5 text-xs font-semibold text-white transition hover:bg-[#462970] flex items-center gap-1.5 shadow-2xs"
             >
-              Sair
-            </button>
+              <Package className="h-3.5 w-3.5" />
+              <span>Produtos & Mídias</span>
+            </Link>
             <Link
               href="/admin/precificador"
               className="rounded-xl border border-[#E6E2DA] bg-white px-3 py-1.5 text-xs font-semibold text-[#24232A] transition hover:border-[#563487] hover:text-[#563487]"
@@ -193,6 +192,14 @@ export default function AdminLayout({ children }: { children: React.ReactNode })
             >
               Ajuda
             </Link>
+            <button
+              type="button"
+              onClick={handleLogout}
+              className="rounded-xl border border-rose-200 bg-rose-50 px-2.5 py-1 text-xs font-semibold text-rose-700 hover:bg-rose-100 transition cursor-pointer"
+              title="Sair do painel"
+            >
+              Sair
+            </button>
           </div>
         </header>
 

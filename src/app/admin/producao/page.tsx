@@ -1,4 +1,6 @@
 import React from 'react';
+import Link from 'next/link';
+import { Package } from 'lucide-react';
 import { getDb } from '@/db';
 import { HelpBalloon } from '@/components/HelpBalloon';
 import { AdminKanbanClient, type KanbanJobDTO } from '@/components/AdminKanbanClient';
@@ -45,7 +47,16 @@ export default async function AdminProducaoKanbanPage() {
             Avance ordens entre as 6 etapas da fazenda de impressão. O consumo produtivo e eventuais falhas abatem gramas reais da bobina e alimentam o CMV.
           </p>
         </div>
-        <HelpBalloon moduleSlug="producao" />
+        <div className="flex items-center gap-2">
+          <Link
+            href="/admin/produtos"
+            className="flex items-center gap-1.5 rounded-xl border border-[#563487] bg-white px-3.5 py-2 text-xs font-bold text-[#563487] hover:bg-[#F3EFFA] transition shadow-2xs"
+          >
+            <Package className="h-4 w-4" />
+            <span>Cadastrar Produtos & Mídias</span>
+          </Link>
+          <HelpBalloon moduleSlug="producao" />
+        </div>
       </div>
 
       <AdminKanbanClient jobs={jobs} />
