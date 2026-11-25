@@ -13,7 +13,16 @@ export interface UserSessionPayload {
   expiresAt: number;
 }
 
-const AUTH_SECRET = process.env.AUTH_SECRET || 'rbs-criacao-v3-secret-key-3d-studio-2026';
+function getAuthSecret(): string {
+  const secret = process.env.AUTH_SECRET;
+  if (secret && secret.trim().length >= 16) {
+    return secret.trim();
+  }
+  if (process.env.NODE_ENV === 'production') {
+    throw new Error('AUTH_SECRET obrigatória em produção (mínimo 16 caracteres).');
+  }
+  return 'rbs-criacao-v3-dev-only-secret-key-2026';
+}
 export const SESSION_COOKIE_NAME = 'rbs_session_token';
 export const SESSION_DURATION_HOURS = 24;
 
@@ -89,7 +98,7 @@ export function sanitizeRedirectPath(pathParam: string | null | undefined): stri
 export function signSessionToken(payload: UserSessionPayload): string {
   const data = Buffer.from(JSON.stringify(payload)).toString('base64url');
   const signature = crypto
-    .createHmac('sha256', AUTH_SECRET)
+    .createHmac('sha256', getAuthSecret())
     .update(data)
     .digest('base64url');
   return `${data}.${signature}`;
@@ -101,10 +110,15 @@ export function verifySessionToken(tokenString: string): UserSessionPayload | nu
   if (parts.length !== 2) return null;
   const [data, signature] = parts;
 
-  const expectedSignature = crypto
-    .createHmac('sha256', AUTH_SECRET)
-    .update(data)
-    .digest('base64url');
+  let expectedSignature: string;
+  try {
+    expectedSignature = crypto
+      .createHmac('sha256', getAuthSecret())
+      .update(data)
+      .digest('base64url');
+  } catch {
+    return null;
+  }
 
   const sigBuf = Buffer.from(signature);
   const expectedSigBuf = Buffer.from(expectedSignature);
@@ -214,8 +228,8 @@ export async function validateSessionFromCookie(
     return payload;
   } catch (err) {
     console.error('Error validating session in database:', err);
-    // If DB check encounters a transient query error, fallback to cryptographically verified payload
-    return payload;
+    // Fail-closed: nunca aceitar sessão se não for possível verificar revogação/status no banco
+    return null;
   }
 }
 

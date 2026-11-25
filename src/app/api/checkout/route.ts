@@ -1,19 +1,36 @@
 import { NextRequest, NextResponse } from 'next/server';
+import crypto from 'crypto';
 import { getDb } from '@/db';
 import { createOrderFromSelectiveCart } from '@/lib/cart-checkout';
-import { hashPassword } from '@/lib/auth';
+import { hashPassword, validateSessionFromCookie, SESSION_COOKIE_NAME } from '@/lib/auth';
+import { getClientIpSafely, checkRateLimit } from '@/lib/rate-limit';
+
+function safeTokenEqual(a: string, b: string): boolean {
+  const bufA = Buffer.from(a);
+  const bufB = Buffer.from(b);
+  if (bufA.length !== bufB.length) return false;
+  return crypto.timingSafeEqual(bufA, bufB);
+}
 
 export async function POST(req: NextRequest) {
   try {
+    const ip = getClientIpSafely(req);
+    if (!checkRateLimit(`checkout:${ip}`, 10, 60 * 1000)) {
+      return NextResponse.json(
+        { error: 'Muitas tentativas em sequência. Aguarde 1 minuto e tente novamente.' },
+        { status: 429 }
+      );
+    }
+
     const db = await getDb();
     const body = await req.json();
 
     // Post-purchase 1-click account creation with token ownership verification
     if (body.action === 'claim_post_purchase_account') {
       const { orderId, claimToken, password } = body;
-      if (!orderId || !claimToken || !password || String(password).length < 6) {
+      if (!orderId || !claimToken || !password || String(password).length < 8) {
         return NextResponse.json(
-          { error: 'Token de verificação do pedido e senha (mínimo 6 caracteres) são obrigatórios.' },
+          { error: 'Token de verificação do pedido e senha (mínimo 8 caracteres) são obrigatórios.' },
           { status: 400 }
         );
       }
@@ -28,7 +45,11 @@ export async function POST(req: NextRequest) {
         'SELECT id, guest_name, guest_email, guest_phone, guest_cpf_cnpj, post_purchase_claim_token FROM orders WHERE id = $1 LIMIT 1',
         [orderId]
       );
-      if (ordRows.length === 0 || ordRows[0].post_purchase_claim_token !== claimToken) {
+      if (
+        ordRows.length === 0 ||
+        !ordRows[0].post_purchase_claim_token ||
+        !safeTokenEqual(String(ordRows[0].post_purchase_claim_token), String(claimToken))
+      ) {
         return NextResponse.json(
           { error: 'Token de posse do pedido inválido ou expirado.' },
           { status: 403 }
@@ -64,9 +85,18 @@ export async function POST(req: NextRequest) {
       });
     }
 
+    // Extrai userId exclusivamente da sessão autenticada (nunca confia em body.userId)
+    const token = req.cookies.get(SESSION_COOKIE_NAME)?.value;
+    const session = await validateSessionFromCookie(db, token);
+    const verifiedUserId = session?.userId || null;
+
+    // Em produção, nunca permite que o cliente aprove o próprio pagamento sem confirmação do gateway
+    const allowSimulatedPayment =
+      process.env.NODE_ENV !== 'production' && body.simulateImmediatePayment !== false;
+
     const result = await createOrderFromSelectiveCart(db, {
       sessionKey: body.sessionKey || 'sess-default-visitor',
-      userId: body.userId || null,
+      userId: verifiedUserId,
       customerName: body.customerName,
       customerEmail: body.customerEmail,
       customerPhone: body.customerPhone,
@@ -77,7 +107,7 @@ export async function POST(req: NextRequest) {
       couponCode: body.couponCode,
       partnerCode: body.partnerCode,
       idempotencyKey: body.idempotencyKey,
-      simulateImmediatePayment: body.simulateImmediatePayment !== false,
+      simulateImmediatePayment: allowSimulatedPayment,
     });
 
     return NextResponse.json(result);

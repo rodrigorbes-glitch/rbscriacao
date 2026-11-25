@@ -1,11 +1,18 @@
 import { NextRequest, NextResponse } from 'next/server';
 
-const AUTH_SECRET = process.env.AUTH_SECRET || 'rbs-criacao-v3-secret-key-3d-studio-2026';
+function getEdgeAuthSecret(): string | null {
+  const secret = process.env.AUTH_SECRET;
+  if (secret && secret.trim().length >= 16) return secret.trim();
+  if (process.env.NODE_ENV === 'production') return null;
+  return 'rbs-criacao-v3-dev-only-secret-key-2026';
+}
 const SESSION_COOKIE_NAME = 'rbs_session_token';
 
 // Web Crypto HMAC-SHA256 for Next.js Edge Runtime Middleware
 async function verifySessionTokenEdge(tokenString: string) {
   if (!tokenString || typeof tokenString !== 'string') return null;
+  const secret = getEdgeAuthSecret();
+  if (!secret) return null;
   const parts = tokenString.split('.');
   if (parts.length !== 2) return null;
   const [data, signature] = parts;
@@ -13,7 +20,7 @@ async function verifySessionTokenEdge(tokenString: string) {
   const enc = new TextEncoder();
   const key = await crypto.subtle.importKey(
     'raw',
-    enc.encode(AUTH_SECRET),
+    enc.encode(secret),
     { name: 'HMAC', hash: 'SHA-256' },
     false,
     ['sign', 'verify']

@@ -1,5 +1,6 @@
 import React from 'react';
 import Link from 'next/link';
+import { cookies } from 'next/headers';
 import { notFound } from 'next/navigation';
 import {
   CheckCircle2,
@@ -7,6 +8,7 @@ import {
   ArrowRight,
 } from 'lucide-react';
 import { getDb } from '@/db';
+import { validateSessionFromCookie, SESSION_COOKIE_NAME } from '@/lib/auth';
 import { StoreHeader } from '@/components/StoreHeader';
 import { StoreFooter } from '@/components/StoreFooter';
 import { PostPurchaseClaimClient } from '@/components/PostPurchaseClaimClient';
@@ -81,7 +83,24 @@ export default async function PedidoConfirmacaoPage({
   const fulBadge =
     FULFILLMENT_STATUS_LABELS[order.fulfillment_status] || FULFILLMENT_STATUS_LABELS.unfulfilled;
 
-  const claimToken = sp.claim || order.post_purchase_claim_token;
+  // Verificação estrita de posse: nunca vazar post_purchase_claim_token do banco se não veio na URL
+  const cookieStore = await cookies();
+  const sessionToken = cookieStore.get(SESSION_COOKIE_NAME)?.value;
+  const session = await validateSessionFromCookie(db, sessionToken);
+
+  const hasValidClaimToken = Boolean(
+    sp.claim &&
+      order.post_purchase_claim_token &&
+      sp.claim === order.post_purchase_claim_token
+  );
+  const isOwnerOrStaff = Boolean(
+    session &&
+      (session.role === 'admin' ||
+        session.role === 'operator' ||
+        (order.user_id && session.userId === order.user_id))
+  );
+  const canViewFullDetails = isOwnerOrStaff || hasValidClaimToken;
+  const verifiedClaimToken = hasValidClaimToken ? sp.claim : null;
 
   return (
     <div className="flex min-h-screen flex-col bg-[#FCFBF8] text-[#24232A]">
@@ -185,44 +204,54 @@ export default async function PedidoConfirmacaoPage({
           )}
         </div>
 
-        {/* Post-purchase 1-click Account Creation for Guest */}
-        {!order.user_id && claimToken && (
+        {/* Post-purchase 1-click Account Creation for Guest (somente com token validado na URL) */}
+        {!order.user_id && verifiedClaimToken && (
           <PostPurchaseClaimClient
             orderId={order.id}
-            claimToken={claimToken}
+            claimToken={verifiedClaimToken}
             guestEmail={order.guest_email}
           />
         )}
 
-        {/* Order Items Table */}
-        <div className="rounded-2xl border border-[#E6E2DA] bg-white p-6">
-          <h2 className="font-display text-base font-semibold text-[#24232A]">
-            Peças deste pedido
-          </h2>
-          <div className="mt-4 divide-y divide-[#E6E2DA] text-xs">
-            {items.map((item) => (
-              <div key={item.id} className="flex items-center justify-between py-3.5">
-                <div>
-                  <strong className="text-sm font-semibold text-[#24232A]">
-                    {item.quantity}x {item.product_name_snapshot}
-                  </strong>
-                  <span className="block text-[#5A5863]">
-                    {item.material_snapshot}
-                    {item.variation_label_snapshot ? ` • ${item.variation_label_snapshot}` : ''}
-                  </span>
-                  {item.custom_text && (
-                    <span className="mt-0.5 block font-medium text-[#563487]">
-                      Gravação personalizada: &ldquo;{item.custom_text}&rdquo;
+        {/* Order Items Table (detalhes completos somente para dono, equipe ou link com token válido) */}
+        {canViewFullDetails ? (
+          <div className="rounded-2xl border border-[#E6E2DA] bg-white p-6">
+            <h2 className="font-display text-base font-semibold text-[#24232A]">
+              Peças deste pedido
+            </h2>
+            <div className="mt-4 divide-y divide-[#E6E2DA] text-xs">
+              {items.map((item) => (
+                <div key={item.id} className="flex items-center justify-between py-3.5">
+                  <div>
+                    <strong className="text-sm font-semibold text-[#24232A]">
+                      {item.quantity}x {item.product_name_snapshot}
+                    </strong>
+                    <span className="block text-[#5A5863]">
+                      {item.material_snapshot}
+                      {item.variation_label_snapshot ? ` • ${item.variation_label_snapshot}` : ''}
                     </span>
-                  )}
+                    {item.custom_text && (
+                      <span className="mt-0.5 block font-medium text-[#563487]">
+                        Gravação personalizada: &ldquo;{item.custom_text}&rdquo;
+                      </span>
+                    )}
+                  </div>
+                  <span className="text-sm font-bold text-[#24232A]">
+                    {formatBRLFromCents(item.unit_price_cents * item.quantity)}
+                  </span>
                 </div>
-                <span className="text-sm font-bold text-[#24232A]">
-                  {formatBRLFromCents(item.unit_price_cents * item.quantity)}
-                </span>
-              </div>
-            ))}
+              ))}
+            </div>
           </div>
-        </div>
+        ) : (
+          <div className="rounded-2xl border border-[#E6E2DA] bg-white p-6 text-sm text-[#5A5863]">
+            Para proteger sua privacidade, os detalhes completos e itens deste pedido são exibidos apenas para o titular autenticado.{' '}
+            <Link href="/login" className="font-semibold text-[#563487] underline">
+              Entrar na minha conta
+            </Link>
+            .
+          </div>
+        )}
 
         <div className="flex flex-wrap justify-between gap-3">
           <Link

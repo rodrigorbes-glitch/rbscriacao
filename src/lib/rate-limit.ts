@@ -32,10 +32,8 @@ export function getClientIpSafely(req: NextRequest): string {
   return '127.0.0.1';
 }
 
-export function checkRateLimit(ip: string): boolean {
+export function checkRateLimit(ip: string, maxRequests = 5, windowMs = 60 * 1000): boolean {
   const now = Date.now();
-  const windowMs = 60 * 1000; // 1 minute
-  const maxRequests = 5; // Max 5 requests per minute
 
   const timestamps = quoteRateLimits.get(ip) || [];
   const recent = timestamps.filter((t) => now - t < windowMs);

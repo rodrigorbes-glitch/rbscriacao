@@ -116,15 +116,14 @@ export async function POST(req: NextRequest) {
         privatePath: `/private-storage/quarantine/${inspect.quarantineStatus}/${inspect.storageFileName}`,
         quarantineStatus: inspect.quarantineStatus,
       };
-    } else if (body.fileName) {
-      // Legacy or mock submission without base64
-      const rawExt = String(body.fileName).toLowerCase();
+    } else if (body.fileName && process.env.NODE_ENV !== 'production') {
+      // Fallback apenas para testes automatizados locais sem base64
       fileMeta = {
         fileName: sanitizePlainText(body.fileName, 80),
         fileSizeBytes: body.fileSizeBytes ? Math.min(Number(body.fileSizeBytes), MAX_FILE_SIZE_BYTES) : null,
         checksum: crypto.createHash('sha256').update(`${body.fileName}:${clientEmail}`).digest('hex'),
-        privatePath: `/private-storage/quarantine/mock-${Date.now()}-${body.fileName}`,
-        quarantineStatus: 'approved',
+        privatePath: `/private-storage/quarantine/pending/mock-${Date.now()}-${sanitizePlainText(body.fileName, 40)}`,
+        quarantineStatus: 'pending',
       };
     }
 

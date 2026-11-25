@@ -1,5 +1,6 @@
 import { NextRequest, NextResponse } from 'next/server';
 import { cookies } from 'next/headers';
+import crypto from 'crypto';
 import { getDb } from '@/db';
 import {
   hashPassword,
@@ -7,9 +8,11 @@ import {
   createSessionInDb,
   validateSessionFromCookie,
   revokeSessionInDb,
+  revokeAllUserSessions,
   SESSION_COOKIE_NAME,
 } from '@/lib/auth';
 import { saveStateSnapshot } from '@/lib/persistent-state';
+import { getClientIpSafely, checkRateLimit } from '@/lib/rate-limit';
 
 async function getSessionToken(req: NextRequest): Promise<string | undefined> {
   let token = req.cookies.get(SESSION_COOKIE_NAME)?.value;
@@ -86,6 +89,13 @@ export async function POST(req: NextRequest) {
 
     // 2. Customer Registration Action
     if (body.action === 'register') {
+      const ip = getClientIpSafely(req);
+      if (!checkRateLimit(`register:${ip}`, 5, 60 * 1000)) {
+        return NextResponse.json(
+          { error: 'Muitas tentativas de cadastro. Aguarde 1 minuto e tente novamente.' },
+          { status: 429 }
+        );
+      }
       const email = String(body.email || '').trim().toLowerCase();
       const name = String(body.name || '').trim();
       const password = String(body.password || '');
@@ -175,12 +185,13 @@ export async function POST(req: NextRequest) {
         return NextResponse.json({ error: 'Usuário não encontrado.' }, { status: 404 });
       }
 
-      // If current password is provided, verify it (unless user is admin altering their account)
-      if (currentPassword) {
-        const valid = verifyPassword(currentPassword, rows[0].password_hash);
-        if (!valid) {
-          return NextResponse.json({ error: 'Senha atual incorreta.' }, { status: 400 });
-        }
+      // Exige obrigatoriamente a senha atual para evitar troca não autorizada em sessões abertas
+      if (!currentPassword) {
+        return NextResponse.json({ error: 'Informe sua senha atual para confirmar a alteração.' }, { status: 400 });
+      }
+      const valid = verifyPassword(currentPassword, rows[0].password_hash);
+      if (!valid) {
+        return NextResponse.json({ error: 'Senha atual incorreta.' }, { status: 400 });
       }
 
       const newHash = hashPassword(newPassword);
@@ -188,6 +199,9 @@ export async function POST(req: NextRequest) {
         'UPDATE users SET password_hash = $1, updated_at = CURRENT_TIMESTAMP WHERE id = $2',
         [newHash, session.userId]
       );
+
+      // Revoga todas as sessões anteriores do usuário antes de emitir uma nova sessão
+      await revokeAllUserSessions(db, session.userId);
 
       // Audit log
       await db.query(
@@ -449,7 +463,147 @@ export async function POST(req: NextRequest) {
       });
     }
 
+    // 6B. Password Recovery — Request Reset Token (rate-limited, SHA-256 hashed, 30 min TTL)
+    if (body.action === 'request_password_reset') {
+      const ip = getClientIpSafely(req);
+      if (!checkRateLimit(`reset:${ip}`, 3, 60 * 1000)) {
+        return NextResponse.json(
+          { error: 'Muitas solicitações de recuperação. Aguarde 1 minuto e tente novamente.' },
+          { status: 429 }
+        );
+      }
+
+      const email = String(body.email || '').trim().toLowerCase();
+      if (!email || !email.includes('@')) {
+        return NextResponse.json({ error: 'Informe um e-mail válido.' }, { status: 400 });
+      }
+
+      const resendApiKey = process.env.RESEND_API_KEY;
+      const emailFrom = process.env.EMAIL_FROM || 'RBS Criação <contato@rbscriacao.com>';
+      if (!resendApiKey) {
+        return NextResponse.json({
+          success: true,
+          emailConfigured: false,
+          message:
+            'O envio automático de e-mail ainda não está configurado neste servidor. Entre em contato pelo WhatsApp oficial da RBS Criação ou solicite a redefinição ao administrador.',
+        });
+      }
+
+      const userRows = await db.query<{ id: string; name: string; email: string; is_active: boolean }>(
+        'SELECT id, name, email, is_active FROM users WHERE LOWER(email) = $1 LIMIT 1',
+        [email]
+      );
+
+      if (userRows.length > 0 && userRows[0].is_active) {
+        const rawToken = crypto.randomBytes(32).toString('hex');
+        const tokenHash = crypto.createHash('sha256').update(rawToken).digest('hex');
+        const expiresAt = Date.now() + 30 * 60 * 1000; // 30 minutos
+        const key = `pwd_reset:${tokenHash}`;
+
+        await db.query(
+          `INSERT INTO store_settings (key, value_json, updated_at)
+           VALUES ($1, $2, CURRENT_TIMESTAMP)
+           ON CONFLICT (key) DO UPDATE SET value_json = EXCLUDED.value_json, updated_at = CURRENT_TIMESTAMP`,
+          [key, JSON.stringify({ userId: userRows[0].id, email: userRows[0].email, expiresAt })]
+        );
+
+        const siteUrl = (process.env.NEXT_PUBLIC_SITE_URL || 'https://www.rbscriacao.com').replace(/\/$/, '');
+        const resetLink = `${siteUrl}/recuperar-senha?token=${encodeURIComponent(rawToken)}`;
+
+        try {
+          await fetch('https://api.resend.com/emails', {
+            method: 'POST',
+            headers: {
+              Authorization: `Bearer ${resendApiKey}`,
+              'Content-Type': 'application/json',
+            },
+            body: JSON.stringify({
+              from: emailFrom,
+              to: [userRows[0].email],
+              subject: 'Redefinição de senha — RBS Criação',
+              html: `<p>Olá, ${userRows[0].name}.</p><p>Recebemos uma solicitação para redefinir sua senha. O link abaixo é válido por 30 minutos e de uso único:</p><p><a href="${resetLink}">${resetLink}</a></p><p>Se você não solicitou esta alteração, ignore este e-mail.</p>`,
+            }),
+          });
+        } catch (mailErr) {
+          console.error('[Auth] Falha ao enviar e-mail de recuperação:', mailErr);
+        }
+      }
+
+      // Resposta sempre genérica para não expor se o e-mail existe na base
+      return NextResponse.json({
+        success: true,
+        emailConfigured: true,
+        message: 'Se este e-mail estiver cadastrado, enviamos um link seguro de redefinição válido por 30 minutos.',
+      });
+    }
+
+    // 6C. Password Recovery — Confirm Reset Token
+    if (body.action === 'confirm_password_reset') {
+      const ip = getClientIpSafely(req);
+      if (!checkRateLimit(`reset_confirm:${ip}`, 5, 60 * 1000)) {
+        return NextResponse.json(
+          { error: 'Muitas tentativas. Aguarde 1 minuto e tente novamente.' },
+          { status: 429 }
+        );
+      }
+
+      const rawToken = String(body.token || '').trim();
+      const newPassword = String(body.newPassword || '');
+      if (!rawToken || newPassword.length < 8) {
+        return NextResponse.json(
+          { error: 'Token inválido ou senha menor que 8 caracteres.' },
+          { status: 400 }
+        );
+      }
+
+      const tokenHash = crypto.createHash('sha256').update(rawToken).digest('hex');
+      const key = `pwd_reset:${tokenHash}`;
+      const tokenRows = await db.query<{ value_json: string }>(
+        'SELECT value_json FROM store_settings WHERE key = $1 LIMIT 1',
+        [key]
+      );
+
+      if (tokenRows.length === 0) {
+        return NextResponse.json({ error: 'Link de redefinição inválido ou já utilizado.' }, { status: 400 });
+      }
+
+      let parsed: { userId: string; email: string; expiresAt: number } | null = null;
+      try {
+        parsed = JSON.parse(tokenRows[0].value_json);
+      } catch {
+        parsed = null;
+      }
+
+      // Consome imediatamente o token (uso único)
+      await db.query('DELETE FROM store_settings WHERE key = $1', [key]);
+
+      if (!parsed || Date.now() > parsed.expiresAt) {
+        return NextResponse.json({ error: 'Este link de redefinição expirou. Solicite um novo.' }, { status: 400 });
+      }
+
+      const newHash = hashPassword(newPassword);
+      await db.query('UPDATE users SET password_hash = $1, updated_at = CURRENT_TIMESTAMP WHERE id = $2', [
+        newHash,
+        parsed.userId,
+      ]);
+      await revokeAllUserSessions(db, parsed.userId);
+      await saveStateSnapshot(db);
+
+      return NextResponse.json({
+        success: true,
+        message: 'Senha redefinida com sucesso! Agora você já pode entrar com sua nova senha.',
+      });
+    }
+
     // 7. Login Action (Standard / Admin / Partner)
+    const loginIp = getClientIpSafely(req);
+    if (!checkRateLimit(`login:${loginIp}`, 10, 60 * 1000)) {
+      return NextResponse.json(
+        { error: 'Muitas tentativas de login. Aguarde 1 minuto antes de tentar novamente.' },
+        { status: 429 }
+      );
+    }
+
     const email = String(body.email || '').trim().toLowerCase();
     const password = String(body.password || '');
 
