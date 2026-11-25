@@ -4,6 +4,7 @@ import { formatBRLFromCents } from "@/lib/format";
 import { HelpBalloon } from "@/components/HelpBalloon";
 import { HELP_ARTICLES } from "@/lib/help-knowledge";
 import { AdminMarketingClient } from "@/components/AdminMarketingClient";
+import { AdminHeroVideoControl } from "@/components/AdminHeroVideoControl";
 import { Image as ImageIcon, Tag } from "lucide-react";
 
 export const dynamic = "force-dynamic";
@@ -11,10 +12,18 @@ export const dynamic = "force-dynamic";
 export default async function AdminMarketingPage() {
   const db = await getDb();
 
-  const [promotions, banners] = await Promise.all([
+  const [promotions, banners, brandRows] = await Promise.all([
     db.query<any>("SELECT * FROM promotions ORDER BY created_at DESC"),
     db.query<any>("SELECT * FROM banners ORDER BY sort_order ASC, created_at DESC"),
+    db.query<{ value_json: string }>("SELECT value_json FROM store_settings WHERE key = 'brand' LIMIT 1"),
   ]);
+
+  let brandSettings: Record<string, any> = {};
+  if (brandRows.length > 0 && brandRows[0].value_json) {
+    try {
+      brandSettings = JSON.parse(brandRows[0].value_json);
+    } catch {}
+  }
 
   return (
     <div className="space-y-8">
@@ -24,14 +33,26 @@ export default async function AdminMarketingPage() {
             RBS Operações → Marketing, Promoções & Identidade Visual
           </span>
           <h1 className="text-2xl sm:text-3xl font-black text-[#24232A] mt-1">
-            Marketing, Promoções & Banners Responsivos
+            Marketing, Vídeo Inicial & Banners Responsivos
           </h1>
           <p className="mt-1 text-xs text-[#5A5863]">
-            Estúdio de banners com enquadramento independente Desktop (16:6) e Mobile (4:5), ponto focal X/Y e trava de margem mínima.
+            Controle a exibição do Vídeo Full-Screen ou Banner na página inicial, enquadramento Desktop/Mobile e campanhas.
           </p>
         </div>
         <HelpBalloon article={HELP_ARTICLES["marketing-banners"]} />
       </div>
+
+      {/* Controle Vídeo Full-Screen vs Banner Estático */}
+      <AdminHeroVideoControl
+        initial={{
+          heroMode: brandSettings.heroMode || "video",
+          heroVideoUrl: brandSettings.heroVideoUrl || "",
+          heroTitle: brandSettings.heroTitle || "Design vibrante criado camada por camada.",
+          heroSubtitle:
+            brandSettings.heroSubtitle ||
+            "Vasos, luminárias e objetos decorativos impressos em 3D com precisão, cor e personalidade para transformar o seu ambiente.",
+        }}
+      />
 
       {/* Studio & Promotion Engine */}
       <AdminMarketingClient />

@@ -14,6 +14,11 @@ const DEFAULT_BRAND_SETTINGS = {
   facebook: '@rbscriacao',
   facebookUrl: 'https://facebook.com/rbscriacao',
   shippingText: 'Envio para todo o Brasil',
+  heroMode: 'video',
+  heroVideoUrl: '',
+  heroTitle: 'Design vibrante criado camada por camada.',
+  heroSubtitle:
+    'Vasos, luminárias e objetos decorativos impressos em 3D com precisão, cor e personalidade para transformar o seu ambiente.',
 };
 
 async function getSessionToken(req: NextRequest): Promise<string | undefined> {
@@ -89,6 +94,12 @@ export async function POST(req: NextRequest) {
       }
     }
 
+    const validHeroModes = new Set(['video', 'banner', 'video_e_banner']);
+    const nextHeroMode =
+      body.heroMode !== undefined && validHeroModes.has(String(body.heroMode))
+        ? String(body.heroMode)
+        : currentBrand.heroMode;
+
     const updatedBrand = {
       ...currentBrand,
       whatsapp: body.whatsapp !== undefined ? String(body.whatsapp).trim() : currentBrand.whatsapp,
@@ -99,6 +110,10 @@ export async function POST(req: NextRequest) {
       facebook: body.facebook !== undefined ? String(body.facebook).trim() : currentBrand.facebook,
       facebookUrl: body.facebookUrl !== undefined ? String(body.facebookUrl).trim() : currentBrand.facebookUrl,
       shippingText: body.shippingText !== undefined ? String(body.shippingText).trim() : currentBrand.shippingText,
+      heroMode: nextHeroMode,
+      heroVideoUrl: body.heroVideoUrl !== undefined ? String(body.heroVideoUrl).trim() : currentBrand.heroVideoUrl,
+      heroTitle: body.heroTitle !== undefined ? String(body.heroTitle).trim() : currentBrand.heroTitle,
+      heroSubtitle: body.heroSubtitle !== undefined ? String(body.heroSubtitle).trim() : currentBrand.heroSubtitle,
     };
 
     await db.query(
