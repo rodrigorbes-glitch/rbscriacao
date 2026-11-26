@@ -29,7 +29,7 @@ export default async function HomePage() {
       "SELECT * FROM products WHERE is_active = TRUE AND featured = TRUE AND images_json != '[]' ORDER BY created_at ASC LIMIT 4"
     ),
     db.query<ProductCardProps>(
-      "SELECT * FROM products WHERE is_active = TRUE AND images_json != '[]' ORDER BY featured DESC, created_at DESC LIMIT 8"
+      "SELECT * FROM products WHERE is_active = TRUE AND images_json != '[]' ORDER BY featured DESC, created_at DESC LIMIT 4"
     ),
     db.query<{
       id: string;
@@ -176,7 +176,7 @@ export default async function HomePage() {
         <section className="border-b border-[#E6E2DA] bg-white py-9">
           <div className="mx-auto grid max-w-7xl grid-cols-1 gap-6 px-4 sm:grid-cols-3 sm:px-6 lg:px-8">
             <div>
-              <p className="text-[11px] font-bold uppercase tracking-[0.18em] text-[#0284C7]">
+              <p className="text-sm font-bold uppercase tracking-[0.12em] text-[#0284C7]">
                 01 · Paleta Sob Medida
               </p>
               <p className="mt-1.5 text-sm leading-relaxed text-[#52525B]">
@@ -184,7 +184,7 @@ export default async function HomePage() {
               </p>
             </div>
             <div>
-              <p className="text-[11px] font-bold uppercase tracking-[0.18em] text-[#0284C7]">
+              <p className="text-sm font-bold uppercase tracking-[0.12em] text-[#0284C7]">
                 02 · Alta Precisão 3D
               </p>
               <p className="mt-1.5 text-sm leading-relaxed text-[#52525B]">
@@ -192,7 +192,7 @@ export default async function HomePage() {
               </p>
             </div>
             <div>
-              <p className="text-[11px] font-bold uppercase tracking-[0.18em] text-[#0284C7]">
+              <p className="text-sm font-bold uppercase tracking-[0.12em] text-[#0284C7]">
                 03 · Varejo &amp; Distribuidores
               </p>
               <p className="mt-1.5 text-sm leading-relaxed text-[#52525B]">
@@ -251,7 +251,7 @@ export default async function HomePage() {
               </div>
               <Link
                 href="/catalogo"
-                className="inline-flex items-center gap-1.5 text-sm font-semibold text-[#F05A37] transition hover:text-[#D94826]"
+                className="inline-flex min-h-[46px] items-center justify-center gap-2 rounded-full bg-[#F05A37] px-6 py-2.5 text-xs font-semibold uppercase tracking-[0.12em] text-white shadow-xs transition hover:bg-[#D94826]"
               >
                 <span>Explorar catálogo completo</span>
                 <ArrowRight className="h-4 w-4" />
@@ -319,9 +319,10 @@ export default async function HomePage() {
               </div>
               <Link
                 href="/instagram"
-                className="text-sm font-semibold text-[#F05A37] transition hover:text-[#D94826]"
+                className="inline-flex min-h-[46px] items-center justify-center gap-2 rounded-full bg-[#F05A37] px-6 py-2.5 text-xs font-semibold uppercase tracking-[0.12em] text-white shadow-xs transition hover:bg-[#D94826]"
               >
-                Ver galeria completa →
+                <span>Ver galeria completa</span>
+                <ArrowRight className="h-4 w-4" />
               </Link>
             </div>
 
