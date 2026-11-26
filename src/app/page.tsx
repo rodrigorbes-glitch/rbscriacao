@@ -158,7 +158,7 @@ export default async function HomePage() {
 
   return (
     <div className="flex min-h-screen flex-col bg-[#F7F7F5] text-[#18181B]">
-      <StoreHeader />
+      <StoreHeader transparentOverHero={showVideoHero} />
 
       <main className="flex-1">
         {/* 1. Topo da Landing Page: Vídeo Full-Screen ou Banner Estático (controlado no Admin) */}

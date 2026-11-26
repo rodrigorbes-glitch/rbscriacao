@@ -22,12 +22,23 @@ export function getVisitorSessionKey(): string {
   return key;
 }
 
-export function StoreHeader() {
+export function StoreHeader({ transparentOverHero = false }: { transparentOverHero?: boolean }) {
   const pathname = usePathname();
   const router = useRouter();
   const [mobileOpen, setMobileOpen] = useState(false);
   const [mobileSearchOpen, setMobileSearchOpen] = useState(false);
+  const [isScrolled, setIsScrolled] = useState(false);
   const [searchTerm, setSearchTerm] = useState('');
+
+  useEffect(() => {
+    if (!transparentOverHero) return;
+    const onScroll = () => setIsScrolled(window.scrollY > 60);
+    onScroll();
+    window.addEventListener('scroll', onScroll, { passive: true });
+    return () => window.removeEventListener('scroll', onScroll);
+  }, [transparentOverHero]);
+
+  const isOverlayMode = transparentOverHero && !isScrolled && !mobileOpen;
   const [cartCount, setCartCount] = useState<number>(0);
   const [wishCount, setWishCount] = useState<number>(0);
   const [currentUser, setCurrentUser] = useState<{
@@ -111,7 +122,15 @@ export function StoreHeader() {
   ];
 
   return (
-    <header className="sticky top-0 z-40 border-b border-[#E6E2DA] bg-[#FCFBF8]/95 text-[#24232A] backdrop-blur-md">
+    <header
+      className={`${
+        transparentOverHero ? 'fixed top-0 left-0 right-0' : 'sticky top-0'
+      } z-40 transition-all duration-300 ${
+        isOverlayMode
+          ? 'border-b border-transparent bg-gradient-to-b from-[#0F172A]/60 to-transparent text-white'
+          : 'border-b border-[#E6E2DA] bg-[#FCFBF8]/95 text-[#24232A] backdrop-blur-md'
+      }`}
+    >
       {/* Main Navigation Row */}
       <div className="mx-auto flex max-w-7xl items-center justify-between gap-4 px-4 py-3.5 sm:px-6 lg:px-8">
         <div className="flex items-center gap-3">
@@ -120,17 +139,30 @@ export function StoreHeader() {
             onClick={() => setMobileOpen((prev) => !prev)}
             aria-label={mobileOpen ? 'Fechar menu de navegação' : 'Abrir menu de navegação'}
             aria-expanded={mobileOpen}
-            className="inline-flex h-11 w-11 items-center justify-center rounded-xl border border-[#E6E2DA] bg-white text-[#24232A] transition hover:bg-[#F2EFE9] lg:hidden"
+            className={`inline-flex h-11 w-11 items-center justify-center rounded-xl border transition lg:hidden ${
+              isOverlayMode
+                ? 'border-white/30 bg-white/10 text-white hover:bg-white/20'
+                : 'border-[#E6E2DA] bg-white text-[#24232A] hover:bg-[#F2EFE9]'
+            }`}
           >
             {mobileOpen ? <X className="h-5 w-5" /> : <Menu className="h-5 w-5" />}
           </button>
 
           <Link href="/" className="flex items-center gap-3 py-1" aria-label="RBS Criação — Página inicial">
-            <img
-              src="/logo_rbs.png"
-              alt="RBS Criação"
-              className="h-10 w-auto object-contain sm:h-11"
-            />
+            {isOverlayMode ? (
+              <span
+                className="text-lg tracking-[0.16em] text-white uppercase sm:text-xl"
+                style={{ fontFamily: 'Georgia, "Times New Roman", Times, serif' }}
+              >
+                RBS Criação
+              </span>
+            ) : (
+              <img
+                src="/logo_rbs.png"
+                alt="RBS Criação"
+                className="h-10 w-auto object-contain sm:h-11"
+              />
+            )}
           </Link>
         </div>
 
@@ -143,9 +175,11 @@ export function StoreHeader() {
                 key={item.href}
                 href={item.href}
                 className={`rounded-lg px-3.5 py-2 text-sm font-medium transition ${
-                  active
-                    ? 'bg-[#F3EFFA] font-semibold text-[#563487]'
-                    : 'text-[#24232A] hover:bg-[#F2EFE9]'
+                  isOverlayMode
+                    ? 'text-white/90 hover:bg-white/15 hover:text-white'
+                    : active
+                      ? 'bg-[#F3EFFA] font-semibold text-[#563487]'
+                      : 'text-[#24232A] hover:bg-[#F2EFE9]'
                 }`}
               >
                 {item.label}
@@ -162,14 +196,20 @@ export function StoreHeader() {
                 type="search"
                 value={searchTerm}
                 onChange={(e) => setSearchTerm(e.target.value)}
-                placeholder="Buscar vasos, peças..."
+                placeholder="Buscar vasos, luminárias, peças 3D..."
                 aria-label="Buscar objetos na loja"
-                className="w-52 rounded-xl border border-[#E6E2DA] bg-white py-2 pr-9 pl-3.5 text-sm text-[#24232A] placeholder-[#6E6B78] transition focus:border-[#563487] focus:outline-none xl:w-64"
+                className={`w-52 rounded-full border py-2 pr-9 pl-4 text-sm transition focus:outline-none xl:w-64 ${
+                  isOverlayMode
+                    ? 'border-white/35 bg-white/15 text-white placeholder-white/80 backdrop-blur-md focus:border-white'
+                    : 'border-[#E6E2DA] bg-white text-[#24232A] placeholder-[#6E6B78] focus:border-[#563487]'
+                }`}
               />
               <button
                 type="submit"
                 aria-label="Buscar"
-                className="absolute top-1/2 right-2.5 -translate-y-1/2 p-1 text-[#5A5863] hover:text-[#563487]"
+                className={`absolute top-1/2 right-2.5 -translate-y-1/2 p-1 ${
+                  isOverlayMode ? 'text-white/85 hover:text-white' : 'text-[#5A5863] hover:text-[#563487]'
+                }`}
               >
                 <Search className="h-4 w-4" />
               </button>
