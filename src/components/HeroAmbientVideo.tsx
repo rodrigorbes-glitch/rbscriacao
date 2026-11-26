@@ -9,9 +9,9 @@ interface HeroAmbientVideoProps {
 }
 
 const DEFAULT_CHAPTERS = [
-  { label: '01 · Impressão 3D', startSec: 0, endSec: 6.0 },
-  { label: '02 · Cor & Luz', startSec: 6.0, endSec: 12.0 },
-  { label: '03 · No Seu Espaço', startSec: 12.0, endSec: 18.0 },
+  { label: '01 · Impressão 3D', startSec: 0, endSec: 5.9 },
+  { label: '02 · Cor & Luz', startSec: 5.9, endSec: 11.7 },
+  { label: '03 · No Seu Espaço', startSec: 11.7, endSec: 17.6 },
 ];
 
 export function HeroAmbientVideo({ videoUrl, title, subtitle }: HeroAmbientVideoProps) {

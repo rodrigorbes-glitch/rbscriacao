@@ -149,20 +149,13 @@ export function StoreHeader({ transparentOverHero = false }: { transparentOverHe
           </button>
 
           <Link href="/" className="flex items-center gap-3 py-1" aria-label="RBS Criação — Página inicial">
-            {isOverlayMode ? (
-              <span
-                className="text-lg tracking-[0.16em] text-white uppercase sm:text-xl"
-                style={{ fontFamily: 'Georgia, "Times New Roman", Times, serif' }}
-              >
-                RBS Criação
-              </span>
-            ) : (
-              <img
-                src="/logo_rbs.png"
-                alt="RBS Criação"
-                className="h-10 w-auto object-contain sm:h-11"
-              />
-            )}
+            <img
+              src="/logo_rbs.png"
+              alt="RBS Criação"
+              className={`h-10 w-auto object-contain transition-all duration-300 sm:h-11 ${
+                isOverlayMode ? 'brightness-0 invert drop-shadow-[0_1px_4px_rgba(0,0,0,0.35)]' : ''
+              }`}
+            />
           </Link>
         </div>
 
